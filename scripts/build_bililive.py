@@ -39,6 +39,7 @@ def patch_time(source):
     replace(manager, 'const { ignoreDataLimit = true } = iOpts;', 'const { ignoreDataLimit = false } = iOpts;')
     replace(manager, '.filter((r) => r.providerId === "Bilibili"))', '.filter((r) => r.providerId === "Bilibili")\n        .filter((r) => fnosAllowed(r.handleTime)))')
     replace(manager, '.filter((r) => isBetweenTimeRange(r.handleTime))', '.filter((r) => fnosAllowed(r.handleTime))')
+    replace(manager, '  isBetweenTimeRange,\n', '')
     replace(manager, 'setTimeout(() => {\n            recorder.checkLiveStatusAndRecord({', 'setTimeout(() => {\n            if (!fnosAllowed(recorder.handleTime)) return;\n            recorder.checkLiveStatusAndRecord({')
     # Exercise actual compiled manager methods with a network-free fake recorder.
     test = source / 'fnos-time-test.cjs'
