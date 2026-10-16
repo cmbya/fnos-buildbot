@@ -1,0 +1,13 @@
+{
+  ".url": {
+    "litepan.main": {
+      "title": "LitePan",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "protocol": "http",
+      "port": "5211",
+      "url": "/",
+      "allUsers": true
+    }
+  }
+}

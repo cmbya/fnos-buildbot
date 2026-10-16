@@ -29,6 +29,7 @@ import tarfile
 import tempfile
 import urllib.request
 import zipfile
+from build_source import build_source
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -381,21 +382,25 @@ def main() -> int:
         return 1
 
     log(f"应用 {app['id']}，上游 {app['upstream_repo']}，版本 {version}（tag {tag}）")
-    release = fetch_release(app["upstream_repo"], tag, token)
-    asset = find_asset(release, app["asset_regex"])
-    log(f"选中上游资产：{asset['name']}（{asset['size']} 字节）")
+    source_build = app.get("strategy") == "github_source"
+    if not source_build:
+        release = fetch_release(app["upstream_repo"], tag, token)
+        asset = find_asset(release, app["asset_regex"])
+        log(f"选中上游资产：{asset['name']}（{asset['size']} 字节）")
 
     with tempfile.TemporaryDirectory(prefix=f"fnos-{app['id']}-") as td:
         work = Path(td)
-        archive = work / asset["name"]
-        http_get(asset["browser_download_url"], archive, token)
-        log(f"下载完成：{archive.stat().st_size} 字节")
-        verify_checksum(app, work, archive, release, token)
-
         stage = work / "stage"
         shutil.copytree(template, stage)
-        extract_member(archive, app["archive_type"], app["inner_binary"], stage / app["binary_dest"])
-        copy_extra_from_archive(archive, app["archive_type"], app.get("copy_from_archive", []), stage)
+        if source_build:
+            build_source(app, ROOT / ".work/source", stage, work)
+        else:
+            archive = work / asset["name"]
+            http_get(asset["browser_download_url"], archive, token)
+            log(f"下载完成：{archive.stat().st_size} 字节")
+            verify_checksum(app, work, archive, release, token)
+            extract_member(archive, app["archive_type"], app["inner_binary"], stage / app["binary_dest"])
+            copy_extra_from_archive(archive, app["archive_type"], app.get("copy_from_archive", []), stage)
 
         keep_checksum = app.get("packer") == "fnpack"
         update_manifest(stage, app, version, keep_checksum)
@@ -408,6 +413,9 @@ def main() -> int:
             out = pack_tar(stage, dist, out_name)
 
         self_check(out, app, version, keep_checksum)
+        if source_build:
+            from build_source import verify_embedded
+            verify_embedded(out, app)
         size = out.stat().st_size
         sha = digest_of(out, "sha256")
         log(f"构建成功：{out}（{size} 字节）")

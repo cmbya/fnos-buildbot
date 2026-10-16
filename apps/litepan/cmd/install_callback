@@ -1,0 +1,17 @@
+#!/bin/bash
+set -u
+
+RUNTIME="${TRIM_PKGVAR}/runtime"
+DATA_DIR="${TRIM_PKGVAR}/data"
+LOG="${TRIM_PKGVAR}/install.log"
+mkdir -p "$RUNTIME" "$DATA_DIR" "${TRIM_PKGETC}"
+if ! bash "${TRIM_APPDEST}/native/install.sh" >> "$LOG" 2>&1; then
+  {
+    echo "LitePan 内置程序安装失败；无需访问 Docker Hub 或下载运行环境。"
+    echo "install.log 最后 40 行："
+    echo "----------------"
+    tail -n 40 "$LOG" 2>/dev/null || true
+  } > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+exit 0

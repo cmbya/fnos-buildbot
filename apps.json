@@ -1,8 +1,25 @@
 {
   "target_repo": "cmbya/FnDepot",
   "release_tag_format": "%Y.%m.%d",
-  "comment": "github_release 使用打包模板；github_fpk 直接校验并转存现成 FPK，无需模板或编译。",
+  "comment": "github_release 使用二进制模板；github_fpk 原样转存；github_source 在 Actions 从固定 tag 对应 SHA 编译。",
   "apps": [
+    {
+      "id": "litepan",
+      "name": "LitePan",
+      "appname": "litepan",
+      "strategy": "github_source",
+      "upstream_repo": "Ponphil/LitePan",
+      "tag_prefix": "v",
+      "source_tag_regex": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta)?$",
+      "template": "apps/litepan",
+      "binary_dest": "app/native/litepan",
+      "fpk_name": "LitePan_{version}_fnOS_x86.fpk",
+      "packer": "tar",
+      "run_as": "root",
+      "service_port": "5211",
+      "desc": "LitePan {version} fnOS x86 原生版。Actions 从固定上游 tag 编译前后端并内置程序，安装升级无需下载镜像；保留原有 data、strm、mounts。",
+      "changelog": "LitePan {version}：固定上游 tag/SHA 源码构建，静态二进制及前端内置；保留 litepan 应用标识与持久化路径。尚未完成真实设备安装、升级及 FUSE 挂载回归测试。"
+    },
     {
       "id": "f2media",
       "name": "F2Media",

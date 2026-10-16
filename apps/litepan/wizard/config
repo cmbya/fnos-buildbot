@@ -1,0 +1,17 @@
+[
+  {
+    "stepTitle": "LitePan 设置",
+    "items": [
+      {
+        "type": "text",
+        "field": "tmdb_api_base_url",
+        "label": "TMDB API 地址（可选）",
+        "placeholder": "例如 https://api.tmdb.org/3"
+      },
+      {
+        "type": "tips",
+        "helpText": "大陆网络下 TMDB 官方域名不稳定时再填写。留空使用 LitePan 默认值。修改后请在应用中心停止并重新启动 LitePan。"
+      }
+    ]
+  }
+]

@@ -19,6 +19,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout fixed upstream source commit
+        if: ${{ fromJSON(inputs.app).strategy == 'github_source' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ fromJSON(inputs.app).upstream_repo }}
+          ref: ${{ fromJSON(inputs.app).source_sha }}
+          path: .work/source
+          persist-credentials: false
+
+      - name: Setup source Node
+        if: ${{ fromJSON(inputs.app).strategy == 'github_source' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: .work/source/web/package-lock.json
+
+      - name: Setup source Go from fixed tag go.mod
+        if: ${{ fromJSON(inputs.app).strategy == 'github_source' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: .work/source/go.mod
+          cache-dependency-path: .work/source/go.sum
+
       - name: 准备环境
         run: |
           set -euo pipefail

@@ -1,0 +1,17 @@
+#!/bin/bash
+set -u
+
+RUNTIME="${TRIM_PKGVAR}/runtime"
+DATA_DIR="${TRIM_PKGVAR}/data"
+LOG="${TRIM_PKGVAR}/upgrade.log"
+mkdir -p "$RUNTIME" "$DATA_DIR"
+if ! bash "${TRIM_APPDEST}/native/install.sh" >> "$LOG" 2>&1; then
+  {
+    echo "LitePan 升级程序准备失败；原有 data、strm、mounts 不会删除。"
+    echo "upgrade.log 最后 40 行："
+    echo "----------------"
+    tail -n 40 "$LOG" 2>/dev/null || true
+  } > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+exit 0

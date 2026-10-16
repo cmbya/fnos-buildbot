@@ -1,0 +1,10 @@
+#!/bin/bash
+set -u
+mkdir -p "${TRIM_PKGETC}"
+SETTINGS="${TRIM_PKGETC}/settings.env"
+: > "$SETTINGS"
+if [ -n "${tmdb_api_base_url:-}" ]; then
+  clean="$(printf '%s' "$tmdb_api_base_url" | tr -d '\r\n')"
+  printf "export TMDB_API_BASE_URL='%s'\n" "$(printf '%s' "$clean" | sed "s/'/'\\''/g")" >> "$SETTINGS"
+fi
+exit 0

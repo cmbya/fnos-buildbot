@@ -93,11 +93,22 @@ def main() -> int:
     changed: list[dict] = []
     for app in apps:
         aid = app["id"]
-        if app.get("strategy") not in ("github_release", "github_fpk"):
+        if app.get("strategy") not in ("github_release", "github_fpk", "github_source"):
             log(f"[跳过] {aid}：strategy={app.get('strategy')} 暂不支持")
             continue
         try:
-            tag, version = latest_release(app["upstream_repo"], app.get("tag_prefix", ""), token)
+            source_sha = None
+            if app.get("strategy") == "github_source":
+                tags = gh_get(f"{GH_API}/repos/{app['upstream_repo']}/tags?per_page=100", token)
+                candidates = [t for t in tags if re.fullmatch(app["source_tag_regex"], t["name"])]
+                if not candidates:
+                    raise RuntimeError("没有匹配的上游源码 tag")
+                tag = candidates[0]["name"]
+                version = tag.removeprefix(app.get("tag_prefix", ""))
+                commit = gh_get(f"{GH_API}/repos/{app['upstream_repo']}/commits/{tag}", token)
+                source_sha = commit["sha"]
+            else:
+                tag, version = latest_release(app["upstream_repo"], app.get("tag_prefix", ""), token)
         except Exception as e:  # noqa: BLE001
             log(f"[错误] {aid}：读取上游版本失败：{e}")
             continue
@@ -116,6 +127,8 @@ def main() -> int:
         item = dict(app)
         item["tag"] = tag
         item["version"] = version
+        if source_sha:
+            item["source_sha"] = source_sha
         changed.append(item)
 
     payload = json.dumps(changed, ensure_ascii=False, separators=(",", ":"))

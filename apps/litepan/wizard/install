@@ -1,0 +1,15 @@
+[
+  {
+    "stepTitle": "LitePan 原生版说明",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "这是 x86_64 原生 fnOS 版本，不运行 Docker。GitHub Actions 从上游固定 tag 编译前后端，程序已内置，安装和升级无需访问 Docker Hub 或下载程序。Web 端口 5211；请首次登录后立即修改默认凭据。"
+      },
+      {
+        "type": "tips",
+        "helpText": "为兼容原版，本应用仍以 root 运行，并保留 data、litepan/strm 与 litepan/mounts 路径。FUSE 挂载还需要设备提供 /dev/fuse、fusermount3 和所需权限；未完成真机安装与挂载验证。"
+      }
+    ]
+  }
+]

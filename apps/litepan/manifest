@@ -1,0 +1,23 @@
+appname=litepan
+version=0.5.6-beta
+display_name=LitePan
+desc=LitePan Go v0.4.9-Beta x86 原生飞牛版。不使用 Docker；从上游官方 amd64 镜像提取二进制运行，保留 WebDAV、STRM、媒体整理和 FUSE 本地挂载能力。
+source=thirdparty
+platform=x86
+maintainer=Ponphil
+maintainer_url=https://github.com/Ponphil/LitePan
+distributor=cmbya
+desktop_uidir=ui
+desktop_applaunchname=litepan.main
+service_port=5211
+checkport=true
+ctl_stop=true
+ctl_uninstall=true
+ctl_upgrade=true
+ctl_config=true
+
+os_min_version=1.1.3100
+disable_authorization_path=false
+check_update=false
+changelog=与 FNAMS 对齐发布者和升级控制字段；直接使用上游版本 0.5.6-beta。
+checksum=PLACEHOLDER

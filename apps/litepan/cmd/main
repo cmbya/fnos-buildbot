@@ -1,0 +1,93 @@
+#!/bin/bash
+set -u
+RUNTIME="${TRIM_PKGVAR}/runtime"
+DATA_DIR="${TRIM_PKGVAR}/data"
+BIN="$RUNTIME/litepan"
+PID_FILE="${TRIM_PKGVAR}/litepan.pid"
+LOG_FILE="${TRIM_PKGVAR}/litepan.log"
+STRM_DIR="/var/apps/litepan/share/strm"
+MOUNTS_DIR="/var/apps/litepan/share/mounts"
+SETTINGS="${TRIM_PKGETC}/settings.env"
+
+export TZ=Asia/Shanghai
+export LITEPAN_DATA_DIR="$DATA_DIR"
+export LITEPAN_STRM_DIR="$STRM_DIR"
+export LITEPAN_LISTEN=":${TRIM_SERVICE_PORT:-5211}"
+export LITEPAN_LOG_LEVEL=info
+
+if [ -f "$SETTINGS" ]; then
+  # 文件由本应用自己的 config_callback 生成，仅包含经过换行过滤的值。
+  . "$SETTINGS"
+fi
+
+pid_alive() {
+  [ -f "$PID_FILE" ] || return 1
+  local p
+  p="$(head -n1 "$PID_FILE" 2>/dev/null | tr -d '[:space:]')"
+  [ -n "$p" ] && kill -0 "$p" 2>/dev/null
+}
+
+prepare_dirs() {
+  mkdir -p "$RUNTIME" "$DATA_DIR" "$STRM_DIR" "$MOUNTS_DIR" || return 1
+  for name in strm mounts; do
+    local target link
+    if [ "$name" = "strm" ]; then target="$STRM_DIR"; else target="$MOUNTS_DIR"; fi
+    link="$RUNTIME/$name"
+    if [ -L "$link" ]; then
+      [ "$(readlink "$link" 2>/dev/null || true)" = "$target" ] || { rm -f "$link"; ln -s "$target" "$link"; }
+    elif [ -e "$link" ]; then
+      if [ -d "$link" ] && [ -z "$(ls -A "$link" 2>/dev/null)" ]; then rmdir "$link"; ln -s "$target" "$link"; fi
+    else
+      ln -s "$target" "$link"
+    fi
+  done
+}
+
+start_app() {
+  if pid_alive; then return 0; fi
+  rm -f "$PID_FILE"
+  [ -x "$BIN" ] || { echo "LitePan 可执行程序缺失，请重新安装应用。" > "${TRIM_TEMP_LOGFILE}"; return 1; }
+  prepare_dirs || { echo "LitePan 数据/共享目录初始化失败。" > "${TRIM_TEMP_LOGFILE}"; return 1; }
+  cd "$RUNTIME" || return 1
+  echo "$(date '+%F %T') starting LitePan; data=$DATA_DIR strm=$STRM_DIR mounts=$MOUNTS_DIR" >> "$LOG_FILE"
+  if [ ! -e /dev/fuse ]; then
+    echo "WARN: /dev/fuse 不存在，LitePan Web/STRM/WebDAV 可继续使用，但 FUSE 本地挂载不可用。" >> "$LOG_FILE"
+  fi
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$BIN" >> "$LOG_FILE" 2>&1 &
+  else
+    "$BIN" >> "$LOG_FILE" 2>&1 &
+  fi
+  local p=$!
+  echo "$p" > "$PID_FILE"
+  sleep 3
+  if ! kill -0 "$p" 2>/dev/null; then
+    rm -f "$PID_FILE"
+    {
+      echo "LitePan 启动失败，请查看 ${LOG_FILE}。"
+      echo "日志最后 35 行："
+      echo "----------------"
+      tail -n 35 "$LOG_FILE" 2>/dev/null || true
+    } > "${TRIM_TEMP_LOGFILE}"
+    return 1
+  fi
+}
+
+stop_app() {
+  if ! pid_alive; then rm -f "$PID_FILE"; return 0; fi
+  local p n=0
+  p="$(head -n1 "$PID_FILE" | tr -d '[:space:]')"
+  kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true
+  while kill -0 "$p" 2>/dev/null && [ "$n" -lt 20 ]; do sleep 1; n=$((n+1)); done
+  if kill -0 "$p" 2>/dev/null; then
+    kill -KILL -- "-$p" 2>/dev/null || kill -KILL "$p" 2>/dev/null || true
+  fi
+  rm -f "$PID_FILE"
+}
+
+case "${1:-}" in
+  start) start_app ;;
+  stop) stop_app ;;
+  status) if pid_alive; then exit 0; else exit 3; fi ;;
+  *) echo "Unknown command: ${1:-}" > "${TRIM_TEMP_LOGFILE}"; exit 1 ;;
+esac
