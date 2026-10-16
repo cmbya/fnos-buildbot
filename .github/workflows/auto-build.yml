@@ -23,6 +23,11 @@ on:
         required: false
         type: boolean
         default: false
+      publish:
+        description: 是否把构建结果发布到 cmbya/FnDepot（默认发布；仅调试构建时设为 false）
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -69,7 +74,7 @@ jobs:
 
   publish:
     needs: [check, build]
-    if: ${{ !cancelled() && needs.check.outputs.count != '0' && inputs.dry_run != true }}
+    if: ${{ !cancelled() && needs.check.outputs.count != '0' && inputs.dry_run != true && (inputs.publish == true || github.event_name != 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
