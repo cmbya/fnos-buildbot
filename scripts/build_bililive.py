@@ -204,4 +204,14 @@ def build(app, source, stage, work):
             for p in procs: p.wait(timeout=30)
             log.seek(0);print(log.read(),flush=True)
     assert all(p.returncode in (0,-15) for p in procs)
+    etc=work/'etc';etc.mkdir();(etc/'passkey').write_text('ci-lifecycle-only')
+    lifecycle_env=dict(env,TRIM_PKGVAR=str(runtime.parent),TRIM_APPDEST=str(stage/'app'),TRIM_PKGETC=str(etc),TRIM_DATA_SHARE_PATHS=str(video),TRIM_TEMP_LOGFILE=str(work/'error.log'))
+    lifecycle=stage/'cmd/main'
+    try:
+        run(['bash',str(lifecycle),'start'],work,env=lifecycle_env)
+        run(['bash',str(lifecycle),'status'],work,env=lifecycle_env)
+    finally:
+        run(['bash',str(lifecycle),'stop'],work,env=lifecycle_env)
+    assert subprocess.run(['bash',str(lifecycle),'status'],env=lifecycle_env).returncode == 3
+    print('LIFECYCLE PASS actual cmd/main start/status/stop and retained time sidecar',flush=True)
     print('SIGTERM stop PASS; provenance',json.dumps(meta),flush=True)
