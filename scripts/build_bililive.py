@@ -84,7 +84,7 @@ def download(url, dest, provenance):
 
 
 def build(app, source, stage, work):
-    commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=source,text=True).strip()
+    commit=subprocess.check_output(['git','-c','safe.directory='+str(source),'rev-parse','HEAD'],cwd=source,text=True).strip()
     assert commit == app['source_sha']
     node_version=(source/'.node-version').read_text().strip()
     actual=subprocess.check_output(['node','--version'],text=True).strip()
