@@ -132,6 +132,11 @@ jobs:
           GH_TOKEN: ${{ secrets.FNDEPOT_TOKEN }}
         run: |
           set -euo pipefail
-          gh workflow run update-fndepot.yml --repo cmbya/FnDepot || {
-            echo "触发索引更新失败（可稍后等 FnDepot 自己的定时任务处理）" >&2
+          gh api --method POST "repos/cmbya/FnDepot/dispatches" \
+            -f event_type=refresh-index \
+          || {
+            echo "repository_dispatch 失败，回退为 workflow_dispatch" >&2
+            gh workflow run update-fndepot.yml --repo cmbya/FnDepot || {
+              echo "触发索引更新失败（可稍后手动运行 FnDepot 的 Update FnDepot Source）" >&2
+            }
           }
