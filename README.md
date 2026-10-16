@@ -55,9 +55,17 @@
 | `github_fpk` | ✅ 已实现 | F2Media、ZJJX：直接获取各自仓库正式 Release 的 FPK，校验后原样转存，不编译、不重打包 |
 | `npm_package` | 计划中 | biliLive-tools：npm registry + 补丁校验 |
 | `github_source_tag` | 计划中 | StreamCap、MeTube：源码 tag + 补丁 / FFmpeg 校验 |
-| `docker_registry` | 计划中 | LitePan：从 Docker Hub 抽取二进制 |
+| `github_source` | ✅ 已实现 | LitePan：检测源码 tag，解析固定 commit SHA，在 Actions 编译前端和静态 Go 程序 |
 
 ## 上游版本命名
+
+### LitePan 源码构建
+
+`litepan` 共用上面的每日两轮检测，比较 FnDepot 已发布版本，仅更新时编译；不使用原仓 FPK、Docker Hub 或 main 分支。
+检测匹配 `source_tag_regex` 的上游 tag 并锁定其 SHA，Node 20 + `npm ci` / type-check / build，Go 版本读取该 SHA 的 go.mod，`CGO_ENABLED=0 go build -tags fuse`。
+打包前检查 ELF64 amd64、无动态解释器/DT_NEEDED，隔离目录实测 HTTP 200 前端、SQLite 初始化与 SIGTERM 退出；验证离线安装脚本重复执行保留 data，再检查 FPK checksum 和内嵌 binary SHA256/BUILD.json。
+保留 `appname=litepan`、root、5211、`${TRIM_PKGVAR}/data`、`/var/apps/litepan/share/strm` 和 `mounts`；仅原子替换 runtime/litepan，不创建或删除根目录 `/app`。
+安装升级无需下载程序、镜像或 Python 依赖。FUSE 仍需设备的 `/dev/fuse`、fusermount3 及权限，真实设备安装、升级、FUSE/WebDAV/STRM 功能尚未回归。上游 lockfile 的 npm audit 告警原样记录，不能视作已完成安全审计。
 
 ### 现成 FPK 接入
 

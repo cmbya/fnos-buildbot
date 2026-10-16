@@ -110,6 +110,9 @@ def build_source(app, source, stage, work):
 def verify_embedded(out, app):
     with tarfile.open(out, 'r:gz') as package:
         members = {m.name.removeprefix('./'): m for m in package.getmembers()}
+        for name, member in members.items():
+            if name.startswith('cmd/') and member.isfile() and not member.mode & 0o111:
+                raise RuntimeError(f'Lifecycle script is not executable: {name}')
         with tarfile.open(fileobj=io.BytesIO(package.extractfile(members['app.tgz']).read()), mode='r:gz') as payload:
             files = {m.name.removeprefix('./'): m for m in payload.getmembers()}
             binary = files[app['binary_dest'].removeprefix('app/')]

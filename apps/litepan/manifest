@@ -1,7 +1,7 @@
 appname=litepan
-version=0.5.6-beta
+version=0.5.7-beta
 display_name=LitePan
-desc=LitePan Go v0.4.9-Beta x86 原生飞牛版。不使用 Docker；从上游官方 amd64 镜像提取二进制运行，保留 WebDAV、STRM、媒体整理和 FUSE 本地挂载能力。
+desc=LitePan x86 原生飞牛版。GitHub Actions 从固定上游 tag 编译前后端，程序已内置，安装升级无需下载镜像。
 source=thirdparty
 platform=x86
 maintainer=Ponphil
@@ -19,5 +19,5 @@ ctl_config=true
 os_min_version=1.1.3100
 disable_authorization_path=false
 check_update=false
-changelog=与 FNAMS 对齐发布者和升级控制字段；直接使用上游版本 0.5.6-beta。
+changelog=固定上游 tag 源码构建并内置程序；保留 litepan 应用标识与 data、strm、mounts 路径。真实设备安装升级与 FUSE 挂载尚未验证。
 checksum=PLACEHOLDER
