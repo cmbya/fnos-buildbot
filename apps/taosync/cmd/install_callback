@@ -1,0 +1,33 @@
+#!/bin/bash
+set -u
+export PATH="/var/apps/python312/target/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+RUNTIME="${TRIM_PKGVAR}/runtime"
+DATA_DIR="${TRIM_PKGVAR}/data"
+LOG="${TRIM_PKGVAR}/install.log"
+VERSION="${TRIM_APPVER%%-*}"
+PORT="${TRIM_SERVICE_PORT:-8023}"
+mkdir -p "$RUNTIME" "$DATA_DIR" "${TRIM_PKGETC}"
+
+if [ ! -f "$DATA_DIR/config.ini" ]; then
+  if [ -z "${tao_password:-}" ]; then
+    echo "没有收到 TaoSync 管理员密码，请重新安装。" > "${TRIM_TEMP_LOGFILE}"
+    exit 1
+  fi
+  {
+    echo "[tao]"
+    printf 'password=%s\n' "$tao_password"
+    printf 'port=%s\n' "$PORT"
+  } > "$DATA_DIR/config.ini"
+fi
+
+if ! /var/apps/python312/target/bin/python3 "${TRIM_APPDEST}/native/bootstrap.py" \
+  --runtime "$RUNTIME" --data "$DATA_DIR" --version "$VERSION" >> "$LOG" 2>&1; then
+  {
+    echo "TaoSync 原生程序部署失败。"
+    echo "install.log 最后 25 行："
+    echo "----------------"
+    tail -n 25 "$LOG" 2>/dev/null || true
+  } > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+exit 0

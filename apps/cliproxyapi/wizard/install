@@ -1,0 +1,30 @@
+[
+  {
+    "stepTitle": "CLIProxyAPI 配置",
+    "items": [
+      {
+        "type": "text",
+        "field": "wizard_port",
+        "label": "API 服务端口",
+        "initValue": "8318",
+        "rules": [
+          {"required": true, "message": "请输入端口"},
+          {"pattern": "^[0-9]{1,5}$", "message": "请输入 1-65535 之间的数字"}
+        ]
+      },
+      {
+        "type": "password",
+        "field": "wizard_management_key",
+        "label": "管理 API 密钥",
+        "rules": [
+          {"required": true, "message": "必须设置管理密钥"},
+          {"min": 9, "message": "密钥至少 9 个字符"}
+        ]
+      },
+      {
+        "type": "tips",
+        "helpText": "服务端口默认 8318，可自行修改，桌面入口会自动使用该端口；监听所有网卡。请使用强管理密钥；配置与 OAuth 凭证保存在应用数据目录。客户端 API Key 请在 config.yaml 的 access.api-keys 中自行配置。"
+      }
+    ]
+  }
+]

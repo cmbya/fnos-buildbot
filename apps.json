@@ -1,0 +1,108 @@
+{
+  "target_repo": "cmbya/FnDepot",
+  "release_tag_format": "%Y.%m.%d",
+  "comment": "每加一个应用：在 apps/ 下放一份 fnOS 打包模板目录，然后在这里加一条记录即可，不需要改 workflow。",
+  "apps": [
+    {
+      "id": "openlist",
+      "name": "OpenList",
+      "appname": "openlistnative",
+      "template": "apps/openlist",
+      "strategy": "github_release",
+      "upstream_repo": "OpenListTeam/OpenList",
+      "tag_prefix": "v",
+      "asset_regex": "^openlist-linux-amd64\\.tar\\.gz$",
+      "archive_type": "tar.gz",
+      "inner_binary": "openlist",
+      "binary_dest": "app/native/openlist",
+      "checksums_asset_regex": "^md5\\.txt$",
+      "checksums_format": "md5",
+      "fpk_name": "OpenList_{version}_fnOS_x86.fpk",
+      "desc": "OpenList {version} x86 原生飞牛版。直接运行官方 Linux amd64 二进制（已内置在安装包中），不使用 Docker；配置和数据库持久化，支持覆盖升级。",
+      "changelog": "自动封装 OpenList v{version}；fnOS x86 原生版，不使用 Docker；升级保留 data。",
+      "display_name": "OpenList",
+      "app_desc": "多存储聚合管理工具的 fnOS x86 原生版。",
+      "categories": [
+        "系统工具"
+      ],
+      "labels": "原生,系统工具,网盘",
+      "maintainer": "OpenListTeam",
+      "maintainer_url": "https://github.com/OpenListTeam/OpenList",
+      "bug_report_url": "https://github.com/cmbya/OpenList-fnOS/issues",
+      "run_as": "package",
+      "service_port": "5244",
+      "packer": "tar",
+      "wizard_help_text": "这是 x86_64 原生版，不使用 Docker。OpenList 官方 Linux amd64 二进制已内置在安装包中，安装与升级都不需要联网下载。Web 端口为 5244。应用会创建 openlist/local 共享目录，可在 OpenList 的本地存储中使用。"
+    },
+    {
+      "id": "cliproxyapi",
+      "name": "CLIProxyAPI",
+      "appname": "cliproxyapi",
+      "template": "apps/cliproxyapi",
+      "strategy": "github_release",
+      "upstream_repo": "router-for-me/CLIProxyAPI",
+      "tag_prefix": "v",
+      "asset_regex": "^CLIProxyAPI_[0-9.]+_linux_amd64\\.tar\\.gz$",
+      "archive_type": "tar.gz",
+      "inner_binary": "cli-proxy-api",
+      "binary_dest": "app/cliproxyapi",
+      "copy_from_archive": [
+        {
+          "name": "config.example.yaml",
+          "dest": "app/config.example.yaml"
+        },
+        {
+          "name": "LICENSE",
+          "dest": "app/LICENSE.upstream",
+          "optional": true
+        }
+      ],
+      "checksums_asset_regex": "^checksums\\.txt$",
+      "checksums_format": "sha256",
+      "fpk_name": "CLIProxyAPI_{version}_fnOS_x86.fpk",
+      "desc": "CLIProxyAPI {version} fnOS x86_64 原生版：提供 OpenAI/Gemini/Claude 兼容 API 服务。",
+      "changelog": "上游 CLIProxyAPI {version}。",
+      "display_name": "CLIProxyAPI",
+      "app_desc": "CLIProxyAPI 的 fnOS x86 原生版，提供 OpenAI/Gemini/Claude 等兼容 API 与浏览器管理界面。",
+      "categories": [
+        "系统工具"
+      ],
+      "labels": "原生,系统工具,AI工具,API代理",
+      "maintainer": "router-for-me",
+      "maintainer_url": "https://github.com/router-for-me/CLIProxyAPI",
+      "bug_report_url": "https://github.com/cmbya/CPA/issues",
+      "run_as": "package",
+      "service_port": "8318",
+      "packer": "fnpack"
+    },
+    {
+      "id": "taosync",
+      "name": "TaoSync",
+      "appname": "taosync",
+      "template": "apps/taosync",
+      "strategy": "github_release",
+      "upstream_repo": "dr34m-cn/taosync",
+      "tag_prefix": "v",
+      "asset_regex": "^taoSync-v[0-9.]+-linux-StaticX-amd64\\.zip$",
+      "archive_type": "zip",
+      "inner_binary": "taoSync",
+      "binary_dest": "app/native/taoSync",
+      "fpk_name": "TaoSync_{version}_fnOS_x86.fpk",
+      "desc": "TaoSync {version} x86 原生飞牛版。直接运行官方 Linux StaticX amd64（已内置在安装包中），不使用 Docker；支持授权目录访问及多种本地/远程存储同步。",
+      "changelog": "自动跟随上游 TaoSync v{version} 构建；fnOS 原生 x86 封装。覆盖升级保留数据库、配置和任务数据。",
+      "display_name": "TaoSync",
+      "app_desc": "文件同步工具的 fnOS x86 原生版。",
+      "categories": [
+        "系统工具"
+      ],
+      "labels": "原生,系统工具,同步",
+      "maintainer": "dr34m-cn",
+      "maintainer_url": "https://github.com/dr34m-cn/taosync",
+      "bug_report_url": "https://github.com/cmbya/TaoSync-fnOS/issues",
+      "run_as": "package",
+      "service_port": "8023",
+      "packer": "tar",
+      "wizard_help_text": "这是 x86_64 原生版，不使用 Docker。TaoSync 官方 Linux StaticX amd64 可执行程序已内置在安装包中，安装与升级都不需要联网下载。安装后如需同步 NAS 本地目录，请在飞牛的 TaoSync 应用设置中授权相应目录。"
+    }
+  ]
+}

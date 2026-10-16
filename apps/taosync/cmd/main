@@ -1,0 +1,86 @@
+#!/bin/bash
+set -u
+RUNTIME="${TRIM_PKGVAR}/runtime"
+DATA_DIR="${TRIM_PKGVAR}/data"
+BIN="$RUNTIME/taoSync"
+PID_FILE="${TRIM_PKGVAR}/taosync.pid"
+LOG_FILE="${TRIM_PKGVAR}/taosync.log"
+PORT="${TRIM_SERVICE_PORT:-8023}"
+
+export TZ=Asia/Shanghai
+export TAO_PORT="$PORT"
+
+pid_alive() {
+  [ -f "$PID_FILE" ] || return 1
+  local p
+  p="$(head -n1 "$PID_FILE" 2>/dev/null | tr -d '[:space:]')"
+  [ -n "$p" ] && kill -0 "$p" 2>/dev/null
+}
+
+ensure_data_link() {
+  mkdir -p "$RUNTIME" "$DATA_DIR" || return 1
+  if [ -L "$RUNTIME/data" ]; then
+    local cur
+    cur="$(readlink "$RUNTIME/data" 2>/dev/null || true)"
+    if [ "$cur" != "$DATA_DIR" ]; then
+      rm -f "$RUNTIME/data"
+      ln -s "$DATA_DIR" "$RUNTIME/data"
+    fi
+  elif [ -e "$RUNTIME/data" ]; then
+    if [ -d "$RUNTIME/data" ] && [ -z "$(ls -A "$RUNTIME/data" 2>/dev/null)" ]; then
+      rmdir "$RUNTIME/data"
+      ln -s "$DATA_DIR" "$RUNTIME/data"
+    else
+      return 1
+    fi
+  else
+    ln -s "$DATA_DIR" "$RUNTIME/data"
+  fi
+}
+
+start_app() {
+  if pid_alive; then return 0; fi
+  rm -f "$PID_FILE"
+  [ -x "$BIN" ] || { echo "TaoSync 可执行程序缺失，请重新安装或升级应用。" > "${TRIM_TEMP_LOGFILE}"; return 1; }
+  ensure_data_link || { echo "TaoSync 数据目录初始化失败。" > "${TRIM_TEMP_LOGFILE}"; return 1; }
+  cd "$RUNTIME" || return 1
+  echo "$(date '+%F %T') starting TaoSync on port $PORT" >> "$LOG_FILE"
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$BIN" >> "$LOG_FILE" 2>&1 &
+  else
+    "$BIN" >> "$LOG_FILE" 2>&1 &
+  fi
+  local p=$!
+  echo "$p" > "$PID_FILE"
+  sleep 3
+  if ! kill -0 "$p" 2>/dev/null; then
+    rm -f "$PID_FILE"
+    {
+      echo "TaoSync 启动失败，请查看 ${LOG_FILE}。"
+      echo "日志最后 20 行："
+      tail -n 20 "$LOG_FILE" 2>/dev/null || true
+    } > "${TRIM_TEMP_LOGFILE}"
+    return 1
+  fi
+  return 0
+}
+
+stop_app() {
+  if ! pid_alive; then rm -f "$PID_FILE"; return 0; fi
+  local p n=0
+  p="$(head -n1 "$PID_FILE" | tr -d '[:space:]')"
+  kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true
+  while kill -0 "$p" 2>/dev/null && [ "$n" -lt 20 ]; do sleep 1; n=$((n+1)); done
+  if kill -0 "$p" 2>/dev/null; then
+    kill -KILL -- "-$p" 2>/dev/null || kill -KILL "$p" 2>/dev/null || true
+  fi
+  rm -f "$PID_FILE"
+  return 0
+}
+
+case "${1:-}" in
+  start) start_app ;;
+  stop) stop_app ;;
+  status) if pid_alive; then exit 0; else exit 3; fi ;;
+  *) echo "Unknown command: ${1:-}" > "${TRIM_TEMP_LOGFILE}"; exit 1 ;;
+esac

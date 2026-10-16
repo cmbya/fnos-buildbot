@@ -1,0 +1,61 @@
+name: Build one app
+
+# 可复用子流程：构建单个应用的 FPK，并上传为 artifact。
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: 单个应用配置的 JSON 字符串（来自 check_upstream.py 的 changed 列表）
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 准备环境
+        run: |
+          set -euo pipefail
+          python3 --version
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq curl
+
+      - name: 安装 fnpack（仅 fnpack 打包方式需要）
+        if: ${{ fromJSON(inputs.app).packer == 'fnpack' }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /usr/local/bin/fnpack \
+            https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
+          chmod +x /usr/local/bin/fnpack
+          fnpack --help | head -3
+
+      - name: 写入单应用配置
+        env:
+          APP_JSON: ${{ inputs.app }}
+        run: |
+          set -euo pipefail
+          mkdir -p .work
+          printf '%s' "$APP_JSON" | jq . > .work/app.json
+          jq -r '"\(.id) -> \(.upstream_repo) \(.version)"' .work/app.json
+
+      - name: 构建 FPK
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 scripts/build_app.py --config .work/app.json
+
+      - name: 上传 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpk-${{ fromJSON(inputs.app).id }}
+          path: dist/*.fpk
+          if-no-files-found: error
+          retention-days: 7

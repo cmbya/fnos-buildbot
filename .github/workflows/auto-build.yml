@@ -1,0 +1,129 @@
+name: Auto build fnOS FPK
+
+# 每天两轮检查上游更新（GitHub cron 为 UTC）：
+#   02:05 UTC = 北京时间 10:05
+#   14:05 UTC = 北京时间 22:05
+# 只有检测到上游有新版本时才构建，构建产物推送到 cmbya/FnDepot 的日期 Release。
+on:
+  schedule:
+    - cron: '5 2,14 * * *'
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 只构建指定应用 id（留空=全部；可用 openlist / cliproxyapi / taosync）
+        required: false
+        type: string
+      force:
+        description: 忽略「已发布」判断，强制重新构建
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: 只检测不构建
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-build
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      count: ${{ steps.check.outputs.count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 检查上游更新
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.FNDEPOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ -n "${{ inputs.app }}" ]]; then args+=(--app "${{ inputs.app }}"); fi
+          if [[ "${{ inputs.force }}" == "true" ]]; then args+=(--force); fi
+          python3 scripts/check_upstream.py "${args[@]}"
+
+      - name: 汇总
+        run: |
+          echo "需要构建 ${{ steps.check.outputs.count }} 个应用"
+
+  build:
+    needs: check
+    if: needs.check.outputs.count != '0' && inputs.dry_run != true
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.check.outputs.changed) }}
+    uses: ./.github/workflows/build-app.yml
+    with:
+      app: ${{ toJSON(matrix.app) }}
+
+  publish:
+    needs: [check, build]
+    if: always() && needs.check.outputs.count != '0' && inputs.dry_run != true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 下载全部构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: fpk-*
+          merge-multiple: true
+
+      - name: 列出产物
+        run: |
+          set -euo pipefail
+          ls -lh artifacts/ || true
+          find artifacts -name '*.fpk' | wc -l
+
+      - name: 发布到 FnDepot（按日期打 tag）
+        env:
+          GH_TOKEN: ${{ secrets.FNDEPOT_TOKEN }}
+          TARGET_REPO: cmbya/FnDepot
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          fpks=(artifacts/*.fpk)
+          if (( ${#fpks[@]} == 0 )); then
+            echo "没有 fpk 产物，跳过发布。"
+            exit 0
+          fi
+          TAG="$(TZ=Asia/Shanghai date +%Y.%m.%d)"
+          echo "目标 Release tag: $TAG"
+          echo "产物：${fpks[*]}"
+
+          if gh release view "$TAG" --repo "$TARGET_REPO" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，追加/覆盖资产。"
+            gh release upload "$TAG" "${fpks[@]}" --repo "$TARGET_REPO" --clobber
+          else
+            gh release create "$TAG" "${fpks[@]}" \
+              --repo "$TARGET_REPO" \
+              --title "fnOS 应用构建 $TAG" \
+              --notes "由 cmbya/fnos-buildbot 自动构建的 fnOS x86 原生 FPK。$(date -u '+%Y-%m-%d %H:%M UTC')"
+          fi
+
+          echo "=== 发布结果 ==="
+          gh release view "$TAG" --repo "$TARGET_REPO" --json tagName,assets \
+            --jq '.tagName, (.assets[] | "  " + .name + "  " + (.size|tostring))'
+
+      - name: 触发 FnDepot 索引更新
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.FNDEPOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh workflow run update-fndepot.yml --repo cmbya/FnDepot || {
+            echo "触发索引更新失败（可稍后等 FnDepot 自己的定时任务处理）" >&2
+          }

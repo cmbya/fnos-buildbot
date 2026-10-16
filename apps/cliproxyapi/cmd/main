@@ -1,0 +1,53 @@
+#!/bin/bash
+set -u
+APP="${TRIM_PKGVAR}"
+CONFIG="${APP}/config.yaml"
+LOG_DIR="${APP}/logs"
+PIDFILE="${APP}/cliproxyapi.pid"
+RUNLOG="${LOG_DIR}/server.log"
+BIN="${TRIM_APPDEST}/cliproxyapi"
+mkdir -p "$LOG_DIR"
+
+is_running() {
+  [[ -f "$PIDFILE" ]] || return 1
+  local pid
+  pid="$(head -n1 "$PIDFILE" 2>/dev/null | tr -d '[:space:]')"
+  [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null
+}
+
+case "${1:-start}" in
+  start)
+    if is_running; then exit 0; fi
+    rm -f "$PIDFILE"
+    [[ -x "$BIN" ]] || { echo "CLIProxyAPI 二进制不存在：$BIN" > "${TRIM_TEMP_LOGFILE:-/tmp/cliproxyapi-start.log}"; exit 1; }
+    [[ -f "$CONFIG" ]] || { echo "配置文件不存在：$CONFIG，请重新安装或恢复配置。" > "${TRIM_TEMP_LOGFILE:-/tmp/cliproxyapi-start.log}"; exit 1; }
+    export HOME="$APP/home"
+    export XDG_CONFIG_HOME="$APP/home/.config"
+    nohup "$BIN" -config "$CONFIG" >> "$RUNLOG" 2>&1 < /dev/null &
+    pid=$!
+    printf '%s\n' "$pid" > "$PIDFILE"
+    chmod 600 "$PIDFILE"
+    sleep 2
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      echo "CLIProxyAPI 启动失败，请查看 $RUNLOG" > "${TRIM_TEMP_LOGFILE:-/tmp/cliproxyapi-start.log}"
+      exit 1
+    fi
+    ;;
+  stop)
+    if is_running; then
+      pid="$(head -n1 "$PIDFILE" | tr -d '[:space:]')"
+      kill "$pid" 2>/dev/null || true
+      for _ in $(seq 1 20); do
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 1
+      done
+      kill -0 "$pid" 2>/dev/null && kill -TERM "$pid" 2>/dev/null || true
+    fi
+    rm -f "$PIDFILE"
+    ;;
+  status)
+    is_running && exit 0 || exit 1
+    ;;
+  *) echo "Usage: $0 {start|stop|status}" >&2; exit 2 ;;
+esac

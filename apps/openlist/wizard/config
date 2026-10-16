@@ -1,0 +1,22 @@
+[
+  {
+    "stepTitle": "OpenList 设置",
+    "items": [
+      {
+        "type": "password",
+        "field": "openlist_password",
+        "label": "重置 admin 密码",
+        "rules": [
+          {
+            "min": 8,
+            "message": "如需修改，密码至少 8 个字符"
+          }
+        ]
+      },
+      {
+        "type": "tips",
+        "helpText": "不修改密码时留空即可。OpenList 本地存储可使用飞牛自动创建的 openlist/local 共享目录。"
+      }
+    ]
+  }
+]

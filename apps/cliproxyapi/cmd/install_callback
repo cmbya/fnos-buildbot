@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+APP="${TRIM_PKGVAR}"
+CONFIG="${APP}/config.yaml"
+TEMPLATE="${TRIM_APPDEST}/config.example.yaml"
+LOG="${TRIM_TEMP_LOGFILE:-/tmp/cliproxyapi-install.log}"
+PORT="${wizard_port:-8318}"
+MGMT_KEY="${wizard_management_key:-}"
+fail() { printf '%s\n' "$*" > "$LOG"; exit 1; }
+[[ "$PORT" =~ ^[0-9]{1,5}$ ]] || fail "服务端口格式错误。"
+(( PORT >= 1 && PORT <= 65535 )) || fail "服务端口必须在 1-65535 范围内。"
+[[ "$MGMT_KEY" =~ ^[A-Za-z0-9._~-]{9,128}$ ]] || fail "管理密钥需为 9-128 位字母、数字或 . _ ~ - 字符。"
+[[ -x "${TRIM_APPDEST}/cliproxyapi" ]] || fail "应用二进制缺失。"
+[[ -f "$TEMPLATE" ]] || fail "配置模板缺失。"
+
+mkdir -p "$APP/auths" "$APP/logs" "$APP/home"
+umask 077
+if [[ ! -e "$CONFIG" ]]; then
+  CONFIG="$CONFIG" PORT="$PORT" MGMT_KEY="$MGMT_KEY" AUTH_DIR="$APP/auths" python3 - <<'PY'
+import os, re
+from pathlib import Path
+p = Path(os.environ['TRIM_APPDEST']) / 'config.example.yaml'
+text = p.read_text(encoding='utf-8')
+text = re.sub(r'(?m)^(  port:)\s*\d+\s*$', lambda m: f"{m.group(1)} {int(os.environ['PORT'])}", text, count=1)
+text = re.sub(r'(?m)^(  allow-remote:)\s*(?:true|false)\s*$', r'\1 true', text, count=1)
+text = re.sub(r'(?m)^(  secret-key:)\s*"[^"]*"\s*$', lambda m: f'{m.group(1)} "{os.environ["MGMT_KEY"]}"', text, count=1)
+text = re.sub(r'(?m)^(  auth-dir:)\s*"[^"]*"\s*$', lambda m: f'{m.group(1)} "{os.environ["AUTH_DIR"]}"', text, count=1)
+if not all(x in text for x in ('port:', 'allow-remote:', 'secret-key:', 'auth-dir:')):
+    raise SystemExit('配置模板缺少必需字段，拒绝生成配置')
+out = Path(os.environ['CONFIG'])
+out.write_text(text, encoding='utf-8')
+os.chmod(out, 0o600)
+PY
+  rc=$?
+  [[ $rc -eq 0 ]] || fail "生成 config.yaml 失败，请检查上游配置模板版本。"
+fi
+chmod 700 "$APP" "$APP/auths" "$APP/home" 2>/dev/null || true
+chmod 600 "$CONFIG" 2>/dev/null || true
+
+# 桌面入口端口由 fnOS 依据 ui/config 中的 ${wizard_port} 占位符自动替换（官方机制），
+# 升级时系统同样会处理，回调不再手工同步，避免覆盖占位符导致升级后端口回退。
+
+printf 'CLIProxyAPI 配置初始化完成。数据目录：%s\n配置文件：%s\n' "$APP" "$CONFIG" > "$LOG"
+exit 0

@@ -1,0 +1,16 @@
+#!/bin/bash
+set -u
+RUNTIME="${TRIM_PKGVAR}/runtime"
+LOG="${TRIM_PKGVAR}/config.log"
+if [ -n "${openlist_password:-}" ]; then
+  [ -x "$RUNTIME/openlist" ] || { echo "OpenList 可执行程序不存在。" > "${TRIM_TEMP_LOGFILE}"; exit 1; }
+  cd "$RUNTIME" || exit 1
+  if ! "$RUNTIME/openlist" admin set "$openlist_password" >> "$LOG" 2>&1; then
+    {
+      echo "OpenList 密码修改失败。"
+      tail -n 20 "$LOG" 2>/dev/null || true
+    } > "${TRIM_TEMP_LOGFILE}"
+    exit 1
+  fi
+fi
+exit 0

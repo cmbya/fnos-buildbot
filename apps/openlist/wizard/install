@@ -1,0 +1,35 @@
+[
+  {
+    "stepTitle": "OpenList 管理员密码",
+    "items": [
+      {
+        "type": "password",
+        "field": "openlist_password",
+        "label": "admin 管理员密码",
+        "rules": [
+          {
+            "required": true,
+            "message": "请设置 OpenList 管理员密码"
+          },
+          {
+            "min": 8,
+            "message": "密码至少 8 个字符"
+          }
+        ]
+      },
+      {
+        "type": "tips",
+        "helpText": "登录用户名固定为 admin。安装程序会直接为 OpenList 设置你填写的密码。"
+      }
+    ]
+  },
+  {
+    "stepTitle": "原生运行说明",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "这是 x86_64 原生版，不使用 Docker。首次安装会从 OpenList 官方 GitHub Release 下载 v4.2.5 Linux amd64 二进制，因此 NAS 需要能访问 GitHub。Web 端口为 5244。应用会创建 openlist/local 共享目录，可在 OpenList 的本地存储中使用。"
+      }
+    ]
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "stepTitle": "TaoSync 管理员密码",
+    "items": [
+      {
+        "type": "password",
+        "field": "tao_password",
+        "label": "管理员密码",
+        "rules": [
+          {
+            "required": true,
+            "message": "请设置 TaoSync 管理员密码"
+          },
+          {
+            "min": 8,
+            "message": "密码至少 8 个字符"
+          }
+        ]
+      },
+      {
+        "type": "tips",
+        "helpText": "默认登录账号为 admin。此密码仅用于首次初始化 TaoSync 数据库，安装后可在 TaoSync 页面中修改。"
+      }
+    ]
+  },
+  {
+    "stepTitle": "原生运行说明",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "这是 x86_64 原生版，不使用 Docker。首次安装会从 TaoSync 官方 GitHub Release 下载 v0.4.0 Linux StaticX amd64 可执行程序，因此 NAS 需要能访问 GitHub。安装后如需同步 NAS 本地目录，请在飞牛的 TaoSync 应用设置中授权相应目录。"
+      }
+    ]
+  }
+]
