@@ -146,7 +146,7 @@ def build(app, source, stage, work):
         if p in checked: continue
         checked.add(p);p.chmod(0o755)
         hdr=subprocess.check_output(['readelf','-h',str(p)],text=True)
-        assert 'Advanced Micro Devices X86-64' in hdr
+        assert 'Advanced Micro Devices X86-64' in hdr, str(p) + ': ' + hdr
         result=subprocess.run(['ldd',str(p)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         if 'not found' in result.stdout: raise RuntimeError(str(p)+': '+result.stdout)
         elf_report.append({'file':str(p.relative_to(bundle)),'ldd':result.stdout})
