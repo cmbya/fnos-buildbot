@@ -111,6 +111,12 @@ def build(app, source, stage, work):
     package.pop('optionalDependencies',None)
     (backend/'package.json').write_text(json.dumps(package,indent=2))
     run(['npm','install','--omit=dev','--no-audit','--no-fund'],backend)
+    # better-sqlite3 distributes prebuilds for every OS/CPU in one npm package.
+    # Retain precisely the Linux x64 target, not unused ARM/musl artifacts.
+    for p in (backend/'node_modules/better-sqlite3/prebuilds').glob('*'):
+        if p.name != 'linux-x64.node':
+            if p.is_dir(): shutil.rmtree(p)
+            else: p.unlink()
     shutil.copytree(source/'packages/app/out/renderer',bundle/'webui')
     (bundle/'node/bin').mkdir(parents=True)
     shutil.copy2('/usr/local/bin/node',bundle/'node/bin/node')
