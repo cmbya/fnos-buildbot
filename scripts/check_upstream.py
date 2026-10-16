@@ -93,7 +93,7 @@ def main() -> int:
     changed: list[dict] = []
     for app in apps:
         aid = app["id"]
-        if app.get("strategy") != "github_release":
+        if app.get("strategy") not in ("github_release", "github_fpk"):
             log(f"[跳过] {aid}：strategy={app.get('strategy')} 暂不支持")
             continue
         try:

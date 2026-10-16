@@ -1,8 +1,30 @@
 {
   "target_repo": "cmbya/FnDepot",
   "release_tag_format": "%Y.%m.%d",
-  "comment": "每加一个应用：在 apps/ 下放一份 fnOS 打包模板目录，然后在这里加一条记录即可，不需要改 workflow。",
+  "comment": "github_release 使用打包模板；github_fpk 直接校验并转存现成 FPK，无需模板或编译。",
   "apps": [
+    {
+      "id": "f2media",
+      "name": "F2Media",
+      "appname": "f2media",
+      "strategy": "github_fpk",
+      "upstream_repo": "cmbya/F2Media-fnOS",
+      "tag_prefix": "v",
+      "asset_regex": "^F2Media_[0-9.]+_fnOS_x86\\.fpk$",
+      "checksums_asset_regex": "^SHA256SUMS\\.txt$",
+      "checksums_format": "sha256",
+      "fpk_name": "F2Media_{version}_fnOS_x86.fpk"
+    },
+    {
+      "id": "zjjx",
+      "name": "ZJJX",
+      "appname": "ZJJX",
+      "strategy": "github_fpk",
+      "upstream_repo": "cmbya/ZJJX",
+      "tag_prefix": "v",
+      "asset_regex": "^ZJJX-[0-9.]+\\.fpk$",
+      "fpk_name": "ZJJX-{version}.fpk"
+    },
     {
       "id": "openlist",
       "name": "OpenList",

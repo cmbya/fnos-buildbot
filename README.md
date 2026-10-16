@@ -3,7 +3,7 @@
 飞牛 fnOS（fnOS）第三方应用的**集中自动构建仓**。
 
 每天北京时间 10:05 / 22:05（GitHub cron 用 UTC：`02:05` / `14:05`）检查上游有没有新版本；
-有新版本才编译 x86 架构的 FPK，推送到 [`cmbya/FnDepot`](https://github.com/cmbya/FnDepot) 的**日期 Release**，
+有新版本才生成或转存 x86 架构的 FPK，推送到 [`cmbya/FnDepot`](https://github.com/cmbya/FnDepot) 的**日期 Release**，
 再由 FnDepot 自己的索引脚本更新 `fnpack.json`。
 
 ## 为什么这样做
@@ -52,11 +52,22 @@
 | 值 | 状态 | 说明 |
 |---|---|---|
 | `github_release` | ✅ 已实现 | 从上游 Release 按 `asset_regex` 下载 x86 产物 |
+| `github_fpk` | ✅ 已实现 | F2Media、ZJJX：直接获取各自仓库正式 Release 的 FPK，校验后原样转存，不编译、不重打包 |
 | `npm_package` | 计划中 | biliLive-tools：npm registry + 补丁校验 |
 | `github_source_tag` | 计划中 | StreamCap、MeTube：源码 tag + 补丁 / FFmpeg 校验 |
 | `docker_registry` | 计划中 | LitePan：从 Docker Hub 抽取二进制 |
 
 ## 上游版本命名
+
+### 现成 FPK 接入
+
+`github_fpk` 只需配置 `id/name/appname/strategy/upstream_repo/tag_prefix/asset_regex/fpk_name`，无需模板、packer 或编译环境。
+有校验文件时可再设置 `checksums_asset_regex/checksums_format`。转存会核验下载大小、GitHub asset SHA256（提供时）、manifest 的应用 ID/版本/x86 架构以及 app.tgz 的 MD5；发布文件与上游字节一致。
+
+- F2Media：`cmbya/F2Media-fnOS` → `F2Media_{version}_fnOS_x86.fpk`
+- ZJJX：`cmbya/ZJJX` → `ZJJX-{version}.fpk`
+
+两者共用每天 10:05 / 22:05 的调度：有新版本才转存，没更新则跳过；同一天追加到日期 Release。首次迁移已有同版本时，用 `app` 指定应用并打开 `force` 完成首次转存，之后恢复正常去重。
 
 **版本号直接跟随上游**，不加 `-nativeN` 后缀。
 原因：后缀会导致版本号无法比较，用户可能收不到更新提示。

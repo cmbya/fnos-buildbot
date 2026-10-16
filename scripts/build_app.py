@@ -297,6 +297,52 @@ def self_check(out: Path, app: dict, version: str, keep_checksum: bool) -> None:
         log("自检通过：manifest 字段、app.tgz checksum、目录结构均正常")
 
 
+def relay_fpk(app: dict, version: str, tag: str, dist: Path, token: str | None) -> int:
+    """校验并原样转存上游 FPK，不解包到磁盘、不修改或重新打包。"""
+    release = fetch_release(app["upstream_repo"], tag, token)
+    asset = find_asset(release, app["asset_regex"])
+    out_name = app["fpk_name"].format(version=version)
+    dist.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="fpk-relay-") as td:
+        work = Path(td)
+        archive = work / "upstream.fpk"
+        http_get(asset["browser_download_url"], archive, token)
+        if archive.stat().st_size != asset["size"]:
+            raise RuntimeError("上游 FPK 下载大小不一致")
+        sha = digest_of(archive, "sha256")
+        expected = asset.get("digest")
+        if expected and expected != f"sha256:{sha}":
+            raise RuntimeError("上游 Release asset digest 校验失败")
+        # 校验文件中的文件名必须与上游资产一致。
+        named_archive = work / asset["name"]
+        archive.rename(named_archive)
+        verify_checksum(app, work, named_archive, release, token)
+        with tarfile.open(named_archive, "r:gz") as package:
+            members = {m.name.removeprefix("./"): m for m in package.getmembers()}
+            manifest = package.extractfile(members["manifest"]).read().decode("utf-8")
+            for key, value in {"appname": app["appname"], "version": version, "platform": "x86"}.items():
+                if not re.search(rf"(?m)^{key}\s*=\s*{re.escape(value)}\s*$", manifest):
+                    raise RuntimeError(f"上游 FPK 的 {key} 不符合预期 {value}")
+            checksum = re.search(r"(?m)^checksum\s*=\s*(\S+)\s*$", manifest)
+            h = hashlib.md5()
+            with package.extractfile(members["app.tgz"]) as payload:
+                for chunk in iter(lambda: payload.read(1024 * 1024), b""):
+                    h.update(chunk)
+            if checksum is None or checksum.group(1).lower() != h.hexdigest():
+                raise RuntimeError("上游 FPK 的 app.tgz checksum 校验失败")
+        out = dist / out_name
+        shutil.copy2(named_archive, out)
+        if digest_of(out, "sha256") != sha:
+            raise RuntimeError("转存后的 FPK 与上游不一致")
+    log(f"原样转存成功：{asset['name']} -> {out_name}（{out.stat().st_size} 字节）")
+    print(f"sha256={sha}")
+    out_file = os.environ.get("GITHUB_OUTPUT")
+    if out_file:
+        with open(out_file, "a", encoding="utf-8") as f:
+            f.write(f"fpk_name={out_name}\nfpk_path={out}\nfpk_sha256={sha}\n")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--app", help="apps.json 中的应用 id")
@@ -327,6 +373,8 @@ def main() -> int:
 
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     dist = ROOT / args.dist
+    if app.get("strategy") == "github_fpk":
+        return relay_fpk(app, version, tag, dist, token)
     template = ROOT / app["template"]
     if not template.is_dir():
         log(f"模板目录不存在：{template}")

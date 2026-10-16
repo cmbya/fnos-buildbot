@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       app:
-        description: 只构建指定应用 id（留空=全部；可用 openlist / cliproxyapi / taosync）
+        description: 指定应用 id（留空=全部；openlist / cliproxyapi / taosync / f2media / zjjx）
         required: false
         type: string
       force:
