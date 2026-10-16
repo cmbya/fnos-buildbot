@@ -69,13 +69,14 @@ jobs:
 
   publish:
     needs: [check, build]
-    if: always() && needs.check.outputs.count != '0' && inputs.dry_run != true
+    if: ${{ !cancelled() && needs.check.outputs.count != '0' && inputs.dry_run != true }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: 下载全部构建产物
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -85,8 +86,9 @@ jobs:
       - name: 列出产物
         run: |
           set -euo pipefail
+          mkdir -p artifacts
           ls -lh artifacts/ || true
-          find artifacts -name '*.fpk' | wc -l
+          echo "fpk 数量：$(find artifacts -name '*.fpk' | wc -l)"
 
       - name: 发布到 FnDepot（按日期打 tag）
         env:
@@ -111,7 +113,8 @@ jobs:
             gh release create "$TAG" "${fpks[@]}" \
               --repo "$TARGET_REPO" \
               --title "fnOS 应用构建 $TAG" \
-              --notes "由 cmbya/fnos-buildbot 自动构建的 fnOS x86 原生 FPK。$(date -u '+%Y-%m-%d %H:%M UTC')"
+              --notes "由 cmbya/fnos-buildbot 自动构建的 fnOS x86 原生 FPK。构建时间：$(date -u '+%Y-%m-%d %H:%M UTC')。尚未完成真实设备安装回归测试，请自行验证后再用于正式环境。" \
+            || gh release upload "$TAG" "${fpks[@]}" --repo "$TARGET_REPO" --clobber
           fi
 
           echo "=== 发布结果 ==="
