@@ -153,6 +153,10 @@ def build(app, source, stage, work):
         checked.add(p);p.chmod(0o755)
         hdr=subprocess.check_output(['readelf','-h',str(p)],text=True)
         assert 'Advanced Micro Devices X86-64' in hdr, str(p) + ': ' + hdr
+        versions=subprocess.check_output(['readelf','--version-info',str(p)],text=True)
+        required=[tuple(map(int,v.split('.'))) for v in re.findall(r'GLIBC_([0-9.]+)',versions)]
+        if required and max(required) > (2,36):
+            raise RuntimeError(f'{p}: GLIBC requirement exceeds Debian 12 baseline: {max(required)}')
         result=subprocess.run(['ldd',str(p)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         if 'not found' in result.stdout: raise RuntimeError(str(p)+': '+result.stdout)
         elf_report.append({'file':str(p.relative_to(bundle)),'ldd':result.stdout})
@@ -169,6 +173,7 @@ def build(app, source, stage, work):
         print('TOOL',exe,result.returncode,result.stdout[:1500],flush=True)
         if result.returncode != 0: raise RuntimeError('Media tool execution failed: '+exe)
     (bundle/'ELF.json').write_text(json.dumps(elf_report,indent=2))
+    run(['node','-e',"const D=require('better-sqlite3');const d=new D(':memory:');d.exec('CREATE TABLE abi_test(x)');d.close();require('@napi-rs/canvas').createCanvas(10,10);require('shazamio-core');require('music-segment-detector');console.log('NATIVE ABI PASS sqlite/canvas/shazamio/music-segment-detector')"],backend,env=dict(os.environ,LD_LIBRARY_PATH=str(lib)))
     shutil.copy2(source/'LICENSE',stage/'LICENSE')
     # Keep license/copyright data of bundled Debian dependencies.
     shutil.copytree('/usr/share/doc',bundle/'debian-licenses',ignore=shutil.ignore_patterns('*.gz','examples','html'))

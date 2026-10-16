@@ -75,7 +75,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$(jq -r .id .work/app.json)" = bililivetools ]; then
-            docker run --rm -v "$PWD:/work" -w /work -e GH_TOKEN -e GITHUB_OUTPUT \
+            docker run --rm -v "$PWD:/work" -w /work -e GH_TOKEN -e GITHUB_OUTPUT=/work/.work/container-output \
               node:24.18.0-bookworm bash -euc 'apt-get update -qq; apt-get install -y -qq python3 make g++ binutils unzip libfontconfig1 libsndfile1 libboost-program-options1.74.0 libboost-filesystem1.74.0 libboost-regex1.74.0 libgd3 libmad0 libmpg123-0 libid3tag0; corepack enable; corepack prepare pnpm@11.5.0 --activate; python3 scripts/build_app.py --config .work/app.json'
           else
             python3 scripts/build_app.py --config .work/app.json
