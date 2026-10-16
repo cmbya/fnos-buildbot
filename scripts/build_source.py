@@ -72,6 +72,9 @@ def smoke(binary, work):
 
 
 def build_source(app, source, stage, work):
+    if app['id'] == 'bililivetools':
+        from build_bililive import build
+        return build(app, source, stage, work)
     if app['id'] != 'litepan':
         raise RuntimeError('No source handler for this app')
     sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source, text=True).strip()

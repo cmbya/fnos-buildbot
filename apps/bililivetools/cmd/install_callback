@@ -1,0 +1,47 @@
+#!/bin/bash
+set -u
+export PATH="/var/apps/python312/target/bin:/var/apps/nodejs_v22/target/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+RUNTIME="${TRIM_PKGVAR}/native-runtime"
+VIDEO_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
+LOG="${TRIM_PKGVAR}/install.log"
+PASS="${wizard_passkey:-}"
+
+if [ "${#PASS}" -lt 6 ]; then
+  echo "Web 管理密码至少需要 6 个字符。" > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+mkdir -p "$RUNTIME" "${TRIM_PKGETC}"
+umask 077
+printf '%s' "$PASS" > "${TRIM_PKGETC}/passkey"
+chmod 600 "${TRIM_PKGETC}/passkey" 2>/dev/null || true
+: > "$LOG"
+
+if [ -z "$VIDEO_DIR" ]; then
+  echo "飞牛没有返回默认录像共享目录路径。" > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+
+BOOTSTRAP="${TRIM_APPDEST}/native/bootstrap.py"
+# native1 正常布局。下面的回退只用于兼容错误打包的 native2。
+if [ ! -f "$BOOTSTRAP" ] && [ -f "${TRIM_APPDEST}/app/native/bootstrap.py" ]; then
+  BOOTSTRAP="${TRIM_APPDEST}/app/native/bootstrap.py"
+fi
+if [ ! -f "$BOOTSTRAP" ]; then
+  {
+    echo "biliLive-tools 安装文件不完整：找不到 native/bootstrap.py。"
+    echo "TRIM_APPDEST=${TRIM_APPDEST}"
+    echo "请安装 native1 或更高版本 FPK。"
+  } > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+
+if ! /var/apps/python312/target/bin/python3 "$BOOTSTRAP" \
+  --runtime "$RUNTIME" --video "$VIDEO_DIR" --back-port 18010 --appdest "${TRIM_APPDEST}" >> "$LOG" 2>&1; then
+  {
+    echo "biliLive-tools 原生运行环境安装失败。下面是 install.log 最后 35 行："
+    echo "----------------"
+    tail -n 35 "$LOG" 2>/dev/null || cat "$LOG" 2>/dev/null || true
+  } > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+exit 0

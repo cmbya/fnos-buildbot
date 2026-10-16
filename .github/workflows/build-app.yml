@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup source Node
-        if: ${{ fromJSON(inputs.app).strategy == 'github_source' }}
+        if: ${{ fromJSON(inputs.app).strategy == 'github_source' && fromJSON(inputs.app).id != 'bililivetools' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -37,7 +37,7 @@ jobs:
           cache-dependency-path: .work/source/web/package-lock.json
 
       - name: Setup source Go from fixed tag go.mod
-        if: ${{ fromJSON(inputs.app).strategy == 'github_source' }}
+        if: ${{ fromJSON(inputs.app).strategy == 'github_source' && fromJSON(inputs.app).id != 'bililivetools' }}
         uses: actions/setup-go@v5
         with:
           go-version-file: .work/source/go.mod
@@ -74,7 +74,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python3 scripts/build_app.py --config .work/app.json
+          if [ "$(jq -r .id .work/app.json)" = bililivetools ]; then
+            docker run --rm -v "$PWD:/work" -w /work -e GH_TOKEN -e GITHUB_OUTPUT \
+              node:24.18.0-bookworm bash -euc 'apt-get update -qq; apt-get install -y -qq python3 make g++ binutils unzip libfontconfig1 libsndfile1 libboost-program-options1.74.0 libboost-filesystem1.74.0 libboost-regex1.74.0 libgd3 libmpg123-0 libid3tag0; corepack enable; corepack prepare pnpm@11.5.0 --activate; python3 scripts/build_app.py --config .work/app.json'
+          else
+            python3 scripts/build_app.py --config .work/app.json
+          fi
 
       - name: 上传 artifact
         uses: actions/upload-artifact@v4

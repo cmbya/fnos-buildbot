@@ -99,12 +99,15 @@ def main() -> int:
         try:
             source_sha = None
             if app.get("strategy") == "github_source":
-                tags = gh_get(f"{GH_API}/repos/{app['upstream_repo']}/tags?per_page=100", token)
-                candidates = [t for t in tags if re.fullmatch(app["source_tag_regex"], t["name"])]
-                if not candidates:
-                    raise RuntimeError("没有匹配的上游源码 tag")
-                tag = candidates[0]["name"]
-                version = tag.removeprefix(app.get("tag_prefix", ""))
+                if app.get('source_release_only'):
+                    tag, version = latest_release(app['upstream_repo'], app.get('tag_prefix', ''), token)
+                else:
+                    tags = gh_get(f"{GH_API}/repos/{app['upstream_repo']}/tags?per_page=100", token)
+                    candidates = [t for t in tags if re.fullmatch(app["source_tag_regex"], t["name"])]
+                    if not candidates:
+                        raise RuntimeError("没有匹配的上游源码 tag")
+                    tag = candidates[0]["name"]
+                    version = tag.removeprefix(app.get("tag_prefix", ""))
                 commit = gh_get(f"{GH_API}/repos/{app['upstream_repo']}/commits/{tag}", token)
                 source_sha = commit["sha"]
             else:

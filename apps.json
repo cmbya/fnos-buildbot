@@ -4,6 +4,21 @@
   "comment": "github_release 使用二进制模板；github_fpk 原样转存；github_source 在 Actions 从固定 tag 对应 SHA 编译。",
   "apps": [
     {
+      "id": "bililivetools",
+      "name": "biliLive-tools",
+      "appname": "bililivetools",
+      "strategy": "github_source",
+      "source_release_only": true,
+      "upstream_repo": "renmu123/biliLive-tools",
+      "tag_prefix": "",
+      "template": "apps/bililivetools",
+      "binary_dest": "app/native/bundle/node/bin/node",
+      "fpk_name": "biliLive-tools_{version}_fnOS_x86.fpk",
+      "packer": "tar",
+      "desc": "biliLive-tools {version}：固定正式 Release 源码编译，内置 Node、前后端和媒体工具，离线部署，保留原数据及录像路径。",
+      "changelog": "固定上游 {version} tag/SHA 源码构建；保留严格北京时间监控窗口行为。尚未完成真实 fnOS 设备安装、升级及真实直播录制回归。"
+    },
+    {
       "id": "litepan",
       "name": "LitePan",
       "appname": "litepan",
