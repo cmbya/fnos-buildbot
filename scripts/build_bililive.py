@@ -53,7 +53,7 @@ for (const [range,date,want] of [
  [['25:00','26:00'],'2026-01-01T07:00:00Z',false],
  [undefined,'2026-01-01T07:00:00Z',true]]) assert.equal(allowed(range,new Date(date)),want);
 (async()=>{
- const {createManager} = await import('./packages/liveManager/lib/manager.js');
+ const {createRecorderManager: createManager} = await import('./packages/liveManager/lib/manager.js');
  const m=createManager({providers:[]}); let calls=0;
  const now=new Date();const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',hourCycle:'h23'}).format(now));
  const text=h=>String(h%24).padStart(2,'0')+':00:00';
