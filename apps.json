@@ -4,6 +4,22 @@
   "comment": "github_release 使用二进制模板；github_fpk 原样转存；github_source 在 Actions 从固定 tag 对应 SHA 编译。",
   "apps": [
     {
+      "id": "streamcap",
+      "name": "StreamCap",
+      "appname": "streamcap",
+      "strategy": "github_source",
+      "source_release_only": true,
+      "source_tag_regex": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "upstream_repo": "ihmily/StreamCap",
+      "tag_prefix": "v",
+      "template": "apps/streamcap",
+      "binary_dest": "app/native/bundle/python/bin/python3.12",
+      "fpk_name": "StreamCap_{version}_fnOS_x86.fpk",
+      "packer": "tar",
+      "desc": "StreamCap {version} 原生 x86：固定源码与 native7 定时录制修复；内置 Python 3.12、Node 20、FFmpeg，离线安装升级。",
+      "changelog": "固定上游 {version} tag/SHA 构建；保留 streamcap 标识、配置、日志及授权录像目录。尚未验证真机升级和真实直播录制。"
+    },
+    {
       "id": "metube",
       "name": "MeTube",
       "appname": "metube",

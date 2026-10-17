@@ -1,0 +1,188 @@
+#!/bin/bash
+set -u
+
+RUNTIME="${TRIM_PKGVAR}/native-runtime"
+SOURCE="$RUNTIME/source"
+VENV="$RUNTIME/python"
+PID_FILE="${TRIM_PKGVAR}/streamcap.pid"
+PORT="${TRIM_SERVICE_PORT:-6006}"
+DEFAULT_DOWNLOADS="${TRIM_DATA_SHARE_PATHS%%:*}"
+PATH_FILE="${TRIM_PKGETC}/recording_path.conf"
+
+recording_path() {
+  local p=""
+  if [ -s "$PATH_FILE" ]; then
+    IFS= read -r p < "$PATH_FILE" || true
+  fi
+  if [ -z "$p" ] && [ -n "${TRIM_DATA_ACCESSIBLE_PATHS:-}" ]; then
+    p="${TRIM_DATA_ACCESSIBLE_PATHS%%:*}"
+  fi
+  if [ -z "$p" ]; then
+    p="$DEFAULT_DOWNLOADS"
+  fi
+  printf '%s' "$p"
+}
+
+DOWNLOADS="$(recording_path)"
+
+# fnOS native7:
+# 将日志放到已授权的录像目录，用户可以直接用飞牛文件管理器查看。
+LOG_DIR="${DOWNLOADS}/StreamCap-Logs"
+LOG_FILE="${LOG_DIR}/streamcap-fnos.log"
+LOG_OLD="${LOG_FILE}.1"
+
+export PATH="$RUNTIME/bin:/usr/bin:/bin:$PATH"
+export LD_LIBRARY_PATH="${TRIM_APPDEST}/native/bundle/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export SSL_CERT_FILE="${TRIM_APPDEST}/native/bundle/cacert.pem"
+export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
+export CURL_CA_BUNDLE="$SSL_CERT_FILE"
+export PYTHONDONTWRITEBYTECODE=1
+export PLATFORM=web
+export HOST=0.0.0.0
+export PORT
+export TZ=Asia/Shanghai
+export PYTHONUNBUFFERED=1
+
+is_running() {
+  if [ -f "$PID_FILE" ]; then
+    pid="$(head -n 1 "$PID_FILE" | tr -d '[:space:]')"
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+    rm -f "$PID_FILE"
+  fi
+  return 1
+}
+
+repair_download_link() {
+  [ -n "$DOWNLOADS" ] || return 1
+  mkdir -p "$DOWNLOADS" || return 1
+  mkdir -p "$LOG_DIR" || return 1
+
+  # fnOS native7: 日志超过 10 MiB 时保留一份旧日志，避免无限增长。
+  if [ -f "$LOG_FILE" ]; then
+    LOG_SIZE="$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)"
+    if [ "${LOG_SIZE:-0}" -ge 10485760 ]; then
+      rm -f "$LOG_OLD"
+      mv "$LOG_FILE" "$LOG_OLD"
+    fi
+  fi
+
+  if [ -L "$SOURCE/downloads" ]; then
+    current="$(readlink "$SOURCE/downloads" 2>/dev/null || true)"
+    if [ "$current" != "$DOWNLOADS" ]; then
+      rm -f "$SOURCE/downloads"
+      ln -s "$DOWNLOADS" "$SOURCE/downloads"
+    fi
+  elif [ -e "$SOURCE/downloads" ]; then
+    if [ -d "$SOURCE/downloads" ] && [ -z "$(ls -A "$SOURCE/downloads" 2>/dev/null)" ]; then
+      rmdir "$SOURCE/downloads"
+      ln -s "$DOWNLOADS" "$SOURCE/downloads"
+    fi
+  else
+    ln -s "$DOWNLOADS" "$SOURCE/downloads"
+  fi
+}
+
+log_runtime_clock() {
+  {
+    echo "============================================================"
+    echo "$(date '+%F %T') [fnOS native7] runtime diagnostics"
+    echo "shell TZ=${TZ:-}"
+    echo "shell date=$(date '+%F %T %z %Z' 2>/dev/null || date)"
+    echo "ffmpeg=$(command -v ffmpeg 2>/dev/null || echo missing)"
+    ffmpeg -version 2>/dev/null | head -n 1 || true
+
+    "$VENV/bin/python3.12" - <<'PY'
+import os
+import time
+from datetime import datetime, timedelta, timezone
+
+try:
+    time.tzset()
+except (AttributeError, OSError):
+    pass
+
+beijing = datetime.now(timezone(timedelta(hours=8)))
+
+print("python datetime.now()=" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+print("python UTC+8=" + beijing.strftime("%Y-%m-%d %H:%M:%S %z"))
+print("python TZ env=" + str(os.environ.get("TZ")))
+print("python time.tzname=" + str(time.tzname))
+PY
+
+    echo "============================================================"
+  } >> "$LOG_FILE" 2>&1
+}
+
+start_app() {
+  if is_running; then
+    return 0
+  fi
+
+  if [ ! -x "$VENV/bin/python3.12" ] || [ ! -f "$SOURCE/main.py" ]; then
+    echo "StreamCap 原生运行环境不存在或不完整，请重新安装/升级应用。" > "${TRIM_TEMP_LOGFILE}"
+    return 1
+  fi
+
+  if ! repair_download_link; then
+    echo "录像目录不可用：${DOWNLOADS}。请在 StreamCap 应用设置中重新选择授权目录。" > "${TRIM_TEMP_LOGFILE}"
+    return 1
+  fi
+
+  cd "$SOURCE" || return 1
+
+  log_runtime_clock
+
+  echo "$(date '+%F %T') [fnOS native7] visible_log=$LOG_FILE" >> "$LOG_FILE"
+  echo "$(date '+%F %T') starting StreamCap native7 on port $PORT; recordings=$DOWNLOADS" >> "$LOG_FILE"
+
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$VENV/bin/python3.12" main.py --web --host 0.0.0.0 --port "$PORT" >> "$LOG_FILE" 2>&1 &
+  else
+    "$VENV/bin/python3.12" main.py --web --host 0.0.0.0 --port "$PORT" >> "$LOG_FILE" 2>&1 &
+  fi
+
+  pid=$!
+  echo "$pid" > "$PID_FILE"
+  sleep 2
+
+  if ! kill -0 "$pid" 2>/dev/null; then
+    rm -f "$PID_FILE"
+    echo "StreamCap 启动失败，请查看 ${LOG_FILE}。" > "${TRIM_TEMP_LOGFILE}"
+    return 1
+  fi
+
+  return 0
+}
+
+stop_app() {
+  if ! is_running; then
+    return 0
+  fi
+
+  pid="$(head -n 1 "$PID_FILE" | tr -d '[:space:]')"
+  echo "$(date '+%F %T') stopping StreamCap native7" >> "$LOG_FILE"
+
+  kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+
+  n=0
+  while kill -0 "$pid" 2>/dev/null && [ "$n" -lt 20 ]; do
+    sleep 1
+    n=$((n + 1))
+  done
+
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+  fi
+
+  rm -f "$PID_FILE"
+  return 0
+}
+
+case "${1:-}" in
+  start) start_app ;;
+  stop) stop_app ;;
+  status) if is_running; then exit 0; else exit 3; fi ;;
+  *) echo "Unknown command: ${1:-}" > "${TRIM_TEMP_LOGFILE}"; exit 1 ;;
+esac

@@ -1,0 +1,20 @@
+#!/bin/bash
+set -u
+export PATH="/var/apps/python312/target/bin:/var/apps/nodejs_v22/target/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+RUNTIME="${TRIM_PKGVAR}/native-runtime"
+DEFAULT_DOWNLOADS="${TRIM_DATA_SHARE_PATHS%%:*}"
+LOG="${TRIM_PKGVAR}/install.log"
+mkdir -p "$RUNTIME" "${TRIM_PKGETC}"
+
+# Default to the app's own data-share. If the user later selects a fnOS
+# authorized directory, config_callback will switch to it.
+if [ ! -s "${TRIM_PKGETC}/recording_path.conf" ]; then
+  printf '%s\n' "$DEFAULT_DOWNLOADS" > "${TRIM_PKGETC}/recording_path.conf"
+fi
+
+if ! "${TRIM_APPDEST}/native/bundle/python/bin/python3.12" "${TRIM_APPDEST}/native/offline.py" \
+  --runtime "$RUNTIME" --downloads "$DEFAULT_DOWNLOADS" --port "${TRIM_SERVICE_PORT:-6006}" >> "$LOG" 2>&1; then
+  echo "StreamCap 原生运行环境安装失败，请查看 ${LOG}。安装包已内置运行环境，不需要联网下载。" > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+exit 0

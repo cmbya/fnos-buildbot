@@ -1,0 +1,33 @@
+#!/bin/bash
+set -u
+DEFAULT_DOWNLOADS="${TRIM_DATA_SHARE_PATHS%%:*}"
+AUTHORIZED="${TRIM_DATA_ACCESSIBLE_PATHS:-}"
+TARGET=""
+STATE_FILE="${TRIM_PKGVAR}/config_was_running"
+
+# fnOS returns multiple authorized paths separated by ':'. StreamCap uses the
+# first authorized directory as its recording root. Grant only the folder you
+# want StreamCap to use when possible.
+if [ -n "$AUTHORIZED" ]; then
+  TARGET="${AUTHORIZED%%:*}"
+fi
+if [ -z "$TARGET" ]; then
+  TARGET="$DEFAULT_DOWNLOADS"
+fi
+
+if [ -z "$TARGET" ]; then
+  echo "没有可用的录像目录。请为 StreamCap 授权一个目录，或重新创建默认 streamcap/downloads 共享目录。" > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+
+mkdir -p "${TRIM_PKGETC}"
+printf '%s\n' "$TARGET" > "${TRIM_PKGETC}/recording_path.conf"
+
+# Restore the previous running state after applying the new path.
+if [ -s "$STATE_FILE" ] && [ "$(head -n 1 "$STATE_FILE" 2>/dev/null)" = "1" ]; then
+  rm -f "$STATE_FILE"
+  "$(dirname "$0")/main" start
+else
+  rm -f "$STATE_FILE"
+fi
+exit 0

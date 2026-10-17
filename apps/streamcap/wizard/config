@@ -1,0 +1,20 @@
+[
+  {
+    "stepTitle": "录像目录",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "修改录像目录：请在 StreamCap 的应用设置中使用飞牛系统的“授权目录”选择一个文件夹。native2 会使用第一个授权目录作为 recordings 根目录；如果没有授权目录，则继续使用默认 streamcap/downloads。保存配置后应用会重新启动并立即生效。"
+      }
+    ]
+  },
+  {
+    "stepTitle": "升级说明",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "native2 会把 user_settings.json、recordings.json、cookies.json、accounts.json、web_auth.json 持久化到应用数据目录。以后安装更高版本 FPK 覆盖升级时，会更新程序与 Python 依赖，同时保留这些配置和录像文件。"
+      }
+    ]
+  }
+]

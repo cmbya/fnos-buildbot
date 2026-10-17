@@ -72,6 +72,9 @@ def smoke(binary, work):
 
 
 def build_source(app, source, stage, work):
+    if app['id'] == 'streamcap':
+        from build_streamcap import build
+        return build(app, source, stage, work)
     if app['id'] == 'metube':
         from build_metube import build
         return build(app, source, stage, work)
@@ -127,7 +130,7 @@ def verify_embedded(out, app):
                 raise RuntimeError('Embedded executable checksum/mode mismatch')
             if meta['commit'] != app['source_sha'] or meta['version'] != app['version']:
                 raise RuntimeError('Embedded source provenance mismatch')
-            if app['id'] == 'metube':
+            if app['id'] in ('metube', 'streamcap'):
                 inventory = meta['runtime_files_sha256']
                 checked = set()
                 for member in payload.getmembers():
