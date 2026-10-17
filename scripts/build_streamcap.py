@@ -105,7 +105,9 @@ def backend(source, bundle, work):
     # hashes + exact freeze in the payload, install only those downloaded wheels.
     wheels = work / 'wheels'
     wheels.mkdir()
-    run([py, '-m', 'pip', 'wheel', '--prefer-binary', '-r', source / 'requirements-web.txt', '-w', wheels])
+    constraint = Path(__file__).with_name('streamcap-1.0.3-constraints.txt')
+    args = ['-c', constraint] if json.loads((source/'config/version.json').read_text())['version_updates'][0]['version'] == '1.0.3' else []
+    run([py, '-m', 'pip', 'wheel', '--prefer-binary', *args, '-r', source / 'requirements-web.txt', '-w', wheels])
     names = sorted(p.name for p in wheels.iterdir())
     (bundle / 'dependency-wheels.json').write_text(json.dumps({n: sha(wheels/n) for n in names}, indent=2))
     run([py, '-m', 'pip', 'install', '--no-index', '--find-links', wheels, '-r', source / 'requirements-web.txt'])
@@ -249,7 +251,7 @@ def probe(stage, work):
         run(['bash',stage/'cmd/main','stop'],env=env)
         print(log.read_text() if log.exists() else 'NO LOG',flush=True)
     assert (var/'streamcap.exit').is_file()
-    assert (var/'streamcap.exit').read_text() in ('0', '-15'), (var/'streamcap.exit').read_text()
+    assert (var/'streamcap.exit').read_text() == '0', (var/'streamcap.exit').read_text()
     print('Shutdown reaped child exit', (var/'streamcap.exit').read_text(), flush=True)
     assert subprocess.run(['bash',stage/'cmd/main','status'],env=env).returncode==3
     with socket.socket() as s: assert s.connect_ex(('127.0.0.1',port))!=0
