@@ -40,7 +40,8 @@ export PYTHONDONTWRITEBYTECODE=1
 export PLATFORM=web
 export HOST=0.0.0.0
 export PORT
-export TZ=Asia/Shanghai
+export TZ=":${TRIM_APPDEST}/native/bundle/Shanghai"
+export STREAMCAP_EXIT_FILE="${TRIM_PKGVAR}/streamcap.exit"
 export PYTHONUNBUFFERED=1
 
 is_running() {
@@ -137,11 +138,8 @@ start_app() {
   echo "$(date '+%F %T') [fnOS native7] visible_log=$LOG_FILE" >> "$LOG_FILE"
   echo "$(date '+%F %T') starting StreamCap native7 on port $PORT; recordings=$DOWNLOADS" >> "$LOG_FILE"
 
-  if command -v setsid >/dev/null 2>&1; then
-    setsid "$VENV/bin/python3.12" main.py --web --host 0.0.0.0 --port "$PORT" >> "$LOG_FILE" 2>&1 &
-  else
-    "$VENV/bin/python3.12" main.py --web --host 0.0.0.0 --port "$PORT" >> "$LOG_FILE" 2>&1 &
-  fi
+  rm -f "$STREAMCAP_EXIT_FILE"
+  "$VENV/bin/python3.12" "${TRIM_APPDEST}/native/supervise.py" "$VENV/bin/python3.12" main.py --web --host 0.0.0.0 --port "$PORT" >> "$LOG_FILE" 2>&1 &
 
   pid=$!
   echo "$pid" > "$PID_FILE"
@@ -164,16 +162,17 @@ stop_app() {
   pid="$(head -n 1 "$PID_FILE" | tr -d '[:space:]')"
   echo "$(date '+%F %T') stopping StreamCap native7" >> "$LOG_FILE"
 
-  kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+  kill -TERM "$pid" 2>/dev/null || true
 
   n=0
-  while kill -0 "$pid" 2>/dev/null && [ "$n" -lt 20 ]; do
+  while [ ! -f "$STREAMCAP_EXIT_FILE" ] && kill -0 "$pid" 2>/dev/null && [ "$n" -lt 30 ]; do
     sleep 1
     n=$((n + 1))
   done
 
-  if kill -0 "$pid" 2>/dev/null; then
-    kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+  if [ ! -f "$STREAMCAP_EXIT_FILE" ]; then
+    echo "StreamCap shutdown timed out" >> "$LOG_FILE"
+    return 1
   fi
 
   rm -f "$PID_FILE"

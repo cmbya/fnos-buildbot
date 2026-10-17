@@ -162,7 +162,7 @@ def behavior(source):
         fnos_now = staticmethod(utils.fnos_now)
     mod.utils = Clock
     async def test():
-        rec = types.SimpleNamespace(monitor_status=True,is_recording=False,scheduled_recording=True,scheduled_start_time='20:00:00',monitor_hours='2',rec_id='ci',url='https://example.invalid/live',detection_time=None,loop_time_seconds=300,showed_checking_status=False,force_stop=True,is_live=False,is_checking=False,status_info=None,start_time=None,stopping_in_progress=False,manually_stopped=False)
+        rec = types.SimpleNamespace(monitor_status=True,is_recording=False,scheduled_recording=True,scheduled_start_time='20:00:00',monitor_hours='2',title='ci',rec_id='ci',url='https://example.invalid/live',detection_time=None,loop_time_seconds=300,showed_checking_status=False,force_stop=True,is_live=False,is_checking=False,status_info=None,start_time=None,stopping_in_progress=False,manually_stopped=False)
         m = RecordingManager.__new__(RecordingManager)
         GlobalRecordingState.recordings = [rec]
         m.active_recorders = {}
@@ -174,13 +174,18 @@ def behavior(source):
         def stop(r, manually_stopped=True):
             assert manually_stopped is False
             calls.append('stop'); m.active_recorders.pop(r.rec_id); r.is_recording=False
-        m.stop_recording = stop
+        m.app = types.SimpleNamespace(page=types.SimpleNamespace(run_task=lambda *a: None))
+        class Recorder:
+            def request_stop(self):
+                calls.append('stop')
+                m.active_recorders.pop(rec.rec_id)
+        # Keep actual RecordingManager.stop_recording; only external recorder mocked.
         await m.check_all_live_status(); await asyncio.sleep(0)
         assert calls == ['check'] and rec.force_stop is False
         rec.is_recording=True
         await m.check_all_live_status(); await asyncio.sleep(0)
         assert calls == ['check','check'] and not rec.is_recording
-        m.active_recorders[rec.rec_id] = object(); rec.is_recording=True
+        m.active_recorders[rec.rec_id] = Recorder(); rec.is_recording=True
         await m.check_all_live_status(); assert calls == ['check','check']
         Clock.in_range=False
         await m.check_all_live_status()
@@ -243,6 +248,9 @@ def probe(stage, work):
     finally:
         run(['bash',stage/'cmd/main','stop'],env=env)
         print(log.read_text() if log.exists() else 'NO LOG',flush=True)
+    assert (var/'streamcap.exit').is_file()
+    assert (var/'streamcap.exit').read_text() in ('0', '-15'), (var/'streamcap.exit').read_text()
+    print('Shutdown reaped child exit', (var/'streamcap.exit').read_text(), flush=True)
     assert subprocess.run(['bash',stage/'cmd/main','status'],env=env).returncode==3
     with socket.socket() as s: assert s.connect_ex(('127.0.0.1',port))!=0
     print('OFFLINE nonroot network-none PASS: lifecycle, repeated deployment, config/recording sentinels, native tools, HTTP server, terminated port',flush=True)
