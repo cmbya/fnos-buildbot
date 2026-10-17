@@ -105,7 +105,7 @@ def backend(source, bundle, work):
     # hashes + exact freeze in the payload, install only those downloaded wheels.
     wheels = work / 'wheels'
     wheels.mkdir()
-    run([py, '-m', 'pip', 'download', '--only-binary=:all:', '-r', source / 'requirements-web.txt', '-d', wheels])
+    run([py, '-m', 'pip', 'wheel', '--prefer-binary', '-r', source / 'requirements-web.txt', '-w', wheels])
     names = sorted(p.name for p in wheels.iterdir())
     (bundle / 'dependency-wheels.json').write_text(json.dumps({n: sha(wheels/n) for n in names}, indent=2))
     run([py, '-m', 'pip', 'install', '--no-index', '--find-links', wheels, '-r', source / 'requirements-web.txt'])
