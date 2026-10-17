@@ -89,6 +89,13 @@ def backend(source, bundle, work):
     (bundle / 'licenses/NOTICE').write_text('MeTube source is unmodified. Python standalone includes its own licenses; Python dependencies retain dist-info licenses. Deno MIT; bgutil and FFmpeg GPL-3.0. See BUILD.json for fixed source/archive URLs and SHA256. FFmpeg 8.1 replaces legacy 7.0.2 per upstream HLS clip fix #1092. Optional aria2 external downloader is not bundled.\n')
     for p in (bundle / 'bin').iterdir():
         p.chmod(0o755)
+    # Provider links OpenSSL dynamically; package its bookworm closure rather
+    # than relying on libraries installed only in the build container.
+    (bundle / 'lib').mkdir()
+    for name in ['libssl.so.3', 'libcrypto.so.3']:
+        shutil.copy2(Path('/usr/lib/x86_64-linux-gnu') / name, bundle / 'lib' / name)
+    shutil.copy2('/usr/share/doc/libssl3/copyright', bundle / 'licenses/OpenSSL-copyright')
+    os.environ['LD_LIBRARY_PATH'] = str(bundle / 'lib')
     # Remove generated absolute shebang entrypoints; launch only python -m / Python scripts.
     for p in (bundle / 'python/bin').iterdir():
         if p.is_file() and p.read_bytes()[:2] == b'#!':
@@ -155,6 +162,9 @@ def probe(stage, work):
     try:
         run(['bash', stage / 'cmd/main', 'start'], env=env)
         run(['bash', stage / 'cmd/main', 'status'], env=env)
+        with urllib.request.urlopen('http://127.0.0.1:4416/ping', timeout=5) as response:
+            assert response.status == 200
+            print('POT provider HTTP PASS', response.read(), flush=True)
         for path in ['/', '/version', '/history', '/subscriptions', '/cookie-status']:
             with urllib.request.urlopen(f'http://127.0.0.1:{port}{path}', timeout=10) as response:
                 data = response.read()
@@ -164,7 +174,10 @@ def probe(stage, work):
                 else:
                     json.loads(data)
                 print('HTTP PASS', path, response.status, len(data), flush=True)
-        assert list(state.iterdir()) != [state / 'sentinel']
+        # Empty queues are lazy: upstream does not create a DB at startup.
+        # Exercise the actual AtomicJsonStore instead of assuming SQLite.
+        run([py, '-c', 'import sys; sys.path.insert(0, sys.argv[1]); from state_store import AtomicJsonStore; s=AtomicJsonStore(sys.argv[2],kind="ci_probe"); s.save({"items":[]}); assert s.load()["items"] == []', str(pkgvar / 'native-runtime/source/app'), str(state / 'ci-probe.json')])
+        assert json.loads((state / 'ci-probe.json').read_text())['schema_version'] == 2
         text = (pkgvar / 'metube.log').read_text()
         assert str(authorized) in text
         print('STATE PASS', [p.name for p in state.iterdir()], flush=True)
@@ -174,6 +187,7 @@ def probe(stage, work):
         print((pkgvar / 'bgutil-pot.log').read_text() if (pkgvar / 'bgutil-pot.log').exists() else 'no provider log', flush=True)
     result = subprocess.run(['bash', stage / 'cmd/main', 'status'], env=env)
     assert result.returncode == 3
+    assert 'MeTube shutdown exit=0' in (pkgvar / 'metube.log').read_text()
     with socket.socket() as sock:
         assert sock.connect_ex(('127.0.0.1', port)) != 0
     print('OFFLINE PASS: repeated install/upgrade preserves state/settings/downloads; lifecycle start/status/stop, authorized path, HTTP UI/APIs; clean stop', flush=True)

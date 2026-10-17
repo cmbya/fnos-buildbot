@@ -27,6 +27,7 @@ if [ -n "$AUTHORIZED_DOWNLOAD_DIR" ]; then
 fi
 
 export PATH="$RUNTIME/bin:$RUNTIME/python/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export LD_LIBRARY_PATH="${TRIM_APPDEST}/native/bundle/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export HOME="$RUNTIME/home"
 export TZ=Asia/Shanghai
 export HOST=0.0.0.0
@@ -68,7 +69,7 @@ start_app(){
 
 stop_app(){
   if pid_alive; then
-    p="$(head -n1 "$PIDFILE"|tr -d '[:space:]')"; kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true
+    p="$(head -n1 "$PIDFILE"|tr -d '[:space:]')"; kill -TERM "$p" 2>/dev/null || true
     n=0; while kill -0 "$p" 2>/dev/null && [ $n -lt 15 ]; do sleep 1; n=$((n+1)); done
     kill -KILL -- "-$p" 2>/dev/null || kill -KILL "$p" 2>/dev/null || true
   fi

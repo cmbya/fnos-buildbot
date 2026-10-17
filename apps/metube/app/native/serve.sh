@@ -8,7 +8,7 @@ bgutil-pot server >> "${TRIM_PKGVAR}/bgutil-pot.log" 2>&1 &
 pot=$!
 "$RUNTIME/python/bin/python3.14" app/main.py &
 app=$!
-cleanup(){ kill -TERM "$app" "$pot" 2>/dev/null || true; wait "$app" 2>/dev/null || true; wait "$pot" 2>/dev/null || true; }
+cleanup(){ kill -TERM "$app" "$pot" 2>/dev/null || true; wait "$app"; code=$?; wait "$pot" 2>/dev/null || true; echo "MeTube shutdown exit=$code"; }
 trap 'cleanup; exit 0' TERM INT
 wait "$app"
 result=$?
