@@ -93,6 +93,9 @@ def backend(source, bundle, work):
     for p in (bundle / 'python/bin').iterdir():
         if p.is_file() and p.read_bytes()[:2] == b'#!':
             p.unlink()
+    for p in (bundle / 'python/bin').iterdir():
+        if p.is_symlink() and not p.exists():
+            p.unlink()
     # No absolute symlinks or unresolved dependencies are allowed.
     for p in bundle.rglob('*'):
         if p.is_symlink() and (os.path.isabs(os.readlink(p)) or not p.exists()):
@@ -188,7 +191,7 @@ def build(app, source, stage, work):
     assert (source / 'ui/dist/metube/browser/index.html').is_file()
     bundle = stage / 'app/native/bundle'
     script = Path(__file__).resolve()
-    run(['docker', 'run', '--rm', '-v', f'{script.parent}:/scripts:ro', '-v', f'{source}:/source:ro', '-v', f'{stage}:/stage', '-v', f'{work}:/build', 'debian:bookworm-slim', 'bash', '-euc', 'apt-get update -qq; apt-get install -y -qq python3 curl ca-certificates binutils xz-utils; python3 /scripts/build_metube.py backend /source /stage/app/native/bundle /build'])
+    run(['docker', 'run', '--rm', '-e', f'HOST_UID={os.getuid()}', '-e', f'HOST_GID={os.getgid()}', '-v', f'{script.parent}:/scripts:ro', '-v', f'{source}:/source:ro', '-v', f'{stage}:/stage', '-v', f'{work}:/build', 'debian:bookworm-slim', 'bash', '-euc', 'trap \'chown -R "$HOST_UID:$HOST_GID" /build\' EXIT; apt-get update -qq; apt-get install -y -qq python3 curl ca-certificates binutils xz-utils; python3 /scripts/build_metube.py backend /source /stage/app/native/bundle /build'])
     (bundle / 'VERSION').write_text(app['version'] + '\n')
     # Keep only offline wrappers in the package; old network bootstrap is reference only.
     (stage / 'app/native/bootstrap.py').unlink()
@@ -203,7 +206,7 @@ def build(app, source, stage, work):
     shutil.copytree(stage, relocated, symlinks=True)
 
     # Embedded Python runs the probe itself, not a runner/system interpreter.
-    run(['docker', 'run', '--rm', '--network', 'none', '-v', f'{script.parent}:/scripts:ro', '-v', f'{relocated}:/relocated:ro', '-v', f'{work}:/test', 'debian:bookworm-slim', '/relocated/app/native/bundle/python/bin/python3.14', '/scripts/build_metube.py', 'probe', '/relocated', '/test/offline'])
+    run(['docker', 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{script.parent}:/scripts:ro', '-v', f'{relocated}:/relocated:ro', '-v', f'{work}:/test', 'debian:bookworm-slim', '/relocated/app/native/bundle/python/bin/python3.14', '/scripts/build_metube.py', 'probe', '/relocated', '/test/offline'])
     changed = subprocess.check_output(['git', 'diff', '--name-only'], cwd=source, text=True).strip()
     assert not changed, f'Upstream tracked source modified: {changed}'
     shutil.copy2(source / 'LICENSE', stage / 'LICENSE')
