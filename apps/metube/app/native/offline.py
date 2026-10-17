@@ -12,7 +12,7 @@ a = p.parse_args()
 runtime = Path(a.runtime)
 bundle = Path(__file__).resolve().parent / 'bundle'
 assert (bundle / 'python/bin/python3.14').is_file()
-assert (bundle / 'source/ui/dist/metube/index.html').is_file()
+assert (bundle / 'source/ui/dist/metube/browser/index.html').is_file()
 for directory in (runtime, runtime / 'home', runtime / 'state', Path(a.download_dir)):
     directory.mkdir(parents=True, exist_ok=True)
 # Keep historical source/venv/tool trees as recovery backups, not user data.

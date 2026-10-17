@@ -185,7 +185,7 @@ def build(app, source, stage, work):
     assert NODE in dockerfile and 'python:3.14-slim' in dockerfile and 'FFMPEG_BRANCH=8.1' in dockerfile
     # Use the official fixed builder digest and the project's packageManager/lockfile.
     run(['docker', 'run', '--rm', '-v', f'{source}:/metube', '-w', '/metube/ui', NODE, 'sh', '-ec', 'corepack enable; corepack prepare pnpm@12.6.0 --activate; CI=true pnpm install --frozen-lockfile; pnpm run build'])
-    assert (source / 'ui/dist/metube/index.html').is_file()
+    assert (source / 'ui/dist/metube/browser/index.html').is_file()
     bundle = stage / 'app/native/bundle'
     script = Path(__file__).resolve()
     run(['docker', 'run', '--rm', '-v', f'{script.parent}:/scripts:ro', '-v', f'{source}:/source:ro', '-v', f'{stage}:/stage', '-v', f'{work}:/build', 'debian:bookworm-slim', 'bash', '-euc', 'apt-get update -qq; apt-get install -y -qq python3 curl ca-certificates binutils xz-utils; python3 /scripts/build_metube.py backend /source /stage/app/native/bundle /build'])
