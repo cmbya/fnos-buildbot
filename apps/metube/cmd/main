@@ -28,6 +28,7 @@ fi
 
 export PATH="$RUNTIME/bin:$RUNTIME/python/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 export LD_LIBRARY_PATH="${TRIM_APPDEST}/native/bundle/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export SSL_CERT_FILE="${TRIM_APPDEST}/native/bundle/cacert.pem"
 export HOME="$RUNTIME/home"
 export TZ=Asia/Shanghai
 export HOST=0.0.0.0

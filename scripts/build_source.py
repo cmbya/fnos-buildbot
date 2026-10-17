@@ -127,4 +127,21 @@ def verify_embedded(out, app):
                 raise RuntimeError('Embedded executable checksum/mode mismatch')
             if meta['commit'] != app['source_sha'] or meta['version'] != app['version']:
                 raise RuntimeError('Embedded source provenance mismatch')
+            if app['id'] == 'metube':
+                inventory = meta['runtime_files_sha256']
+                checked = set()
+                for member in payload.getmembers():
+                    name = member.name.removeprefix('./').removeprefix('native/bundle/')
+                    if name not in inventory or not member.isfile():
+                        continue
+                    h = hashlib.sha256()
+                    with payload.extractfile(member) as stream:
+                        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                            h.update(chunk)
+                    if h.hexdigest() != inventory[name]:
+                        raise RuntimeError(f'Embedded MeTube runtime digest mismatch: {name}')
+                    checked.add(name)
+                if checked != set(inventory):
+                    raise RuntimeError('Embedded MeTube runtime inventory incomplete')
+                print('FPK MeTube complete runtime file SHA256 inventory verified', flush=True)
     print('FPK embedded binary SHA256 and fixed-tag provenance verified', flush=True)

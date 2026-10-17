@@ -95,6 +95,8 @@ def backend(source, bundle, work):
     for name in ['libssl.so.3', 'libcrypto.so.3']:
         shutil.copy2(Path('/usr/lib/x86_64-linux-gnu') / name, bundle / 'lib' / name)
     shutil.copy2('/usr/share/doc/libssl3/copyright', bundle / 'licenses/OpenSSL-copyright')
+    shutil.copy2('/etc/ssl/certs/ca-certificates.crt', bundle / 'cacert.pem')
+    shutil.copy2('/usr/share/doc/ca-certificates/copyright', bundle / 'licenses/ca-certificates-copyright')
     os.environ['LD_LIBRARY_PATH'] = str(bundle / 'lib')
     # Remove generated absolute shebang entrypoints; launch only python -m / Python scripts.
     for p in (bundle / 'python/bin').iterdir():
@@ -212,6 +214,8 @@ def build(app, source, stage, work):
     binary = stage / app['binary_dest']
     metadata = {'repo': app['upstream_repo'], 'tag': app['tag'], 'commit': actual, 'version': app['version'], 'binary_sha256': sha(binary), 'node_builder': NODE, 'glibc_baseline_max': '2.36', 'source_modified': False, 'tools': {k: dict(zip(['repo', 'tag', 'asset', 'sha256'], v)) for k, v in TOOLS.items()}, 'locks': {p: sha(source / p) for p in ['uv.lock', 'pyproject.toml', 'ui/pnpm-lock.yaml', 'ui/package.json']}}
     (stage / 'app/native/BUILD.json').write_text(json.dumps(metadata, indent=2) + '\n')
+    metadata['runtime_files_sha256'] = {str(p.relative_to(bundle)): sha(p) for p in bundle.rglob('*') if p.is_file() and not p.is_symlink()}
+    (stage / 'app/native/BUILD.json').write_text(json.dumps(metadata, indent=2) + '\n')
     for p in (stage / 'cmd').iterdir():
         p.chmod(0o755)
     (stage / 'app/native/serve.sh').chmod(0o755)
@@ -224,7 +228,7 @@ def build(app, source, stage, work):
     changed = subprocess.check_output(['git', 'diff', '--name-only'], cwd=source, text=True).strip()
     assert not changed, f'Upstream tracked source modified: {changed}'
     shutil.copy2(source / 'LICENSE', stage / 'LICENSE')
-    print('MeTube provenance:', json.dumps(metadata), flush=True)
+    print('MeTube provenance:', json.dumps({k: v for k, v in metadata.items() if k != 'runtime_files_sha256'}), flush=True)
 
 
 if __name__ == '__main__':

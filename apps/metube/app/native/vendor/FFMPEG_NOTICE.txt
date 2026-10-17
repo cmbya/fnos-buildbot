@@ -3,12 +3,13 @@ Bundled FFmpeg binary
 
 The FFmpeg executable is injected by GitHub Actions at FPK build time.
 
-Version: 7.0.2-static
+Version: 8.1.3 release branch, fixed build g46d899d7a0
 Architecture: Linux x86_64
-Source package used by the builder: imageio-ffmpeg==0.6.0
-Static build provenance: https://johnvansickle.com/ffmpeg/
+Source package used by the builder: BtbN/FFmpeg-Builds autobuild-2026-10-16-13-04
+Build recipe and source: https://github.com/BtbN/FFmpeg-Builds/tree/autobuild-2026-10-16-13-04
 Expected SHA256:
-e7e7fb30477f717e6f55f9180a70386c62677ef8a4d4d1a5d948f4098aa3eb99
+c19bd7fec94e0c56032fad4f20bf56b2847f18fbe372c758b32ed10d4dec2176 (archive)
 
-The final .fpk MUST contain app/native/vendor/ffmpeg.
+The final .fpk contains native/bundle/bin/ffmpeg and ffprobe.
+Upgraded from legacy 7.0.2 to match MeTube's upstream 8.1 HLS clip fix (#1092).
 fnOS installation does not download FFmpeg.

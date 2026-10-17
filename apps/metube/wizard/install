@@ -4,7 +4,7 @@
     "items": [
       {
         "type": "tips",
-        "helpText": "x86_64 原生版，不使用 Docker。FFmpeg 已直接集成在 FPK 中；首次安装仍需 NAS 能访问 GitHub、PyPI/npm，用于下载对应 MeTube 源码、Python 3.13、Node.js 22、Deno 等运行依赖，并构建 WebUI。"
+        "helpText": "x86_64 原生版，不使用 Docker。Actions 已从固定 tag/SHA 构建 WebUI，并内置 Python 3.14、锁定依赖、FFmpeg/FFprobe 8.1、Deno 与 POT provider。安装和升级无需访问 GitHub、PyPI/npm；实际下载视频仍需联网。"
       },
       {
         "type": "tips",

@@ -4,7 +4,7 @@ RUNTIME="${TRIM_PKGVAR}/native-runtime"
 # Native wrapper replaces Docker gosu/tini only; business source is unchanged.
 # Do not run nightly pip upgrades: this package is a lockfile-based offline bundle.
 unset YTDL_NIGHTLY_UPDATE_TIME
-bgutil-pot server >> "${TRIM_PKGVAR}/bgutil-pot.log" 2>&1 &
+bgutil-pot server --host 127.0.0.1 >> "${TRIM_PKGVAR}/bgutil-pot.log" 2>&1 &
 pot=$!
 "$RUNTIME/python/bin/python3.14" app/main.py &
 app=$!
