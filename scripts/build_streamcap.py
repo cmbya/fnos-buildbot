@@ -146,6 +146,7 @@ def behavior(source):
     # This is not the historical synthetic fixture: bodies come from fixed SHA.
     import types
     sys.path.insert(0, str(source))
+    sys.argv[0] = str(source / 'main.py')
     from app.utils import utils
     from app.models.recording.recording_status_model import RecordingStatus
     from app.core.recording.record_manager import RecordingManager, GlobalRecordingState
