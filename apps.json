@@ -4,6 +4,22 @@
   "comment": "github_release 使用二进制模板；github_fpk 原样转存；github_source 在 Actions 从固定 tag 对应 SHA 编译。",
   "apps": [
     {
+      "id": "metube",
+      "name": "MeTube",
+      "appname": "metube",
+      "strategy": "github_source",
+      "source_release_only": true,
+      "source_tag_regex": "^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}$",
+      "upstream_repo": "alexta69/metube",
+      "tag_prefix": "",
+      "template": "apps/metube",
+      "binary_dest": "app/native/bundle/python/bin/python3.14",
+      "fpk_name": "MeTube_{version}_fnOS_x86.fpk",
+      "packer": "tar",
+      "desc": "MeTube {version} 原生 x86 版：Actions 固定源码构建 WebUI，内置 Python 3.14、锁定依赖、FFmpeg 8.1、Deno 和 POT provider；离线安装升级。",
+      "changelog": "固定上游 {version} tag/SHA 构建，保留下载授权目录、状态和缓存路径。FFmpeg 8.1 对齐上游 HLS 修复要求。尚未完成真机安装和真实站点下载回归。"
+    },
+    {
       "id": "bililivetools",
       "name": "biliLive-tools",
       "appname": "bililivetools",

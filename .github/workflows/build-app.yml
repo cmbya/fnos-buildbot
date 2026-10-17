@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup source Node
-        if: ${{ fromJSON(inputs.app).strategy == 'github_source' && fromJSON(inputs.app).id != 'bililivetools' }}
+        if: ${{ fromJSON(inputs.app).id == 'litepan' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -37,7 +37,7 @@ jobs:
           cache-dependency-path: .work/source/web/package-lock.json
 
       - name: Setup source Go from fixed tag go.mod
-        if: ${{ fromJSON(inputs.app).strategy == 'github_source' && fromJSON(inputs.app).id != 'bililivetools' }}
+        if: ${{ fromJSON(inputs.app).id == 'litepan' }}
         uses: actions/setup-go@v5
         with:
           go-version-file: .work/source/go.mod

@@ -1,0 +1,15 @@
+#!/bin/bash
+set -u
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+RUNTIME="${TRIM_PKGVAR}/native-runtime"
+DOWNLOAD_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
+LOG="${TRIM_PKGVAR}/install.log"
+mkdir -p "$RUNTIME"; : > "$LOG"
+if [ -z "$DOWNLOAD_DIR" ]; then echo "飞牛没有返回 MeTube 下载共享目录路径。" > "${TRIM_TEMP_LOGFILE}"; exit 1; fi
+BOOT="${TRIM_APPDEST}/native/offline.py"
+if [ ! -f "$BOOT" ]; then echo "MeTube 安装文件不完整：找不到 native/bootstrap.py。" > "${TRIM_TEMP_LOGFILE}"; exit 1; fi
+if ! "${TRIM_APPDEST}/native/bundle/python/bin/python3.14" "$BOOT" --runtime "$RUNTIME" --download-dir "$DOWNLOAD_DIR" >> "$LOG" 2>&1; then
+  { echo "MeTube 原生运行环境安装失败。install.log 最后 40 行："; echo "----------------"; tail -n 40 "$LOG" 2>/dev/null || true; } > "${TRIM_TEMP_LOGFILE}"
+  exit 1
+fi
+exit 0

@@ -1,0 +1,83 @@
+#!/bin/bash
+set -u
+RUNTIME="${TRIM_PKGVAR}/native-runtime"
+PIDFILE="${TRIM_PKGVAR}/metube.pid"
+LOGFILE="${TRIM_PKGVAR}/metube.log"
+PORT="${TRIM_SERVICE_PORT:-8081}"
+
+# 默认下载目录：FPK 声明的 metube/downloads 共享目录。
+DEFAULT_DOWNLOAD_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
+
+# 如果用户在 fnOS「应用设置 → 访问权限」中授权了目录，
+# 使用第一个授权目录作为 MeTube 下载根目录。
+ACCESSIBLE_PATHS="${TRIM_DATA_ACCESSIBLE_PATHS:-}"
+AUTHORIZED_DOWNLOAD_DIR="${ACCESSIBLE_PATHS%%:*}"
+
+DOWNLOAD_DIR="$DEFAULT_DOWNLOAD_DIR"
+DOWNLOAD_DIR_SOURCE="默认共享目录"
+
+if [ -n "$AUTHORIZED_DOWNLOAD_DIR" ]; then
+  if [ -d "$AUTHORIZED_DOWNLOAD_DIR" ] && [ -w "$AUTHORIZED_DOWNLOAD_DIR" ]; then
+    DOWNLOAD_DIR="$AUTHORIZED_DOWNLOAD_DIR"
+    DOWNLOAD_DIR_SOURCE="飞牛授权目录"
+  else
+    # 授权目录不存在或不可写时继续使用默认共享目录，避免 MeTube 无法启动。
+    DOWNLOAD_DIR_SOURCE="默认共享目录（授权目录不可写）"
+  fi
+fi
+
+export PATH="$RUNTIME/bin:$RUNTIME/python/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export HOME="$RUNTIME/home"
+export TZ=Asia/Shanghai
+export HOST=0.0.0.0
+export PORT="$PORT"
+export DOWNLOAD_DIR="$DOWNLOAD_DIR"
+export AUDIO_DOWNLOAD_DIR="$DOWNLOAD_DIR"
+export STATE_DIR="$RUNTIME/state"
+export TEMP_DIR="$DOWNLOAD_DIR/.metube-tmp"
+export CHOWN_DIRS=false
+export METUBE_VERSION="$(cat "$RUNTIME/VERSION")"
+# 兼容 Clash/Mihomo Fake-IP（198.18.0.0/15）。仅建议在可信内网使用。
+export ALLOW_PRIVATE_ADDRESSES=true
+
+pid_alive(){ [ -f "$PIDFILE" ] || return 1; p="$(head -n1 "$PIDFILE" 2>/dev/null|tr -d '[:space:]')"; [ -n "$p" ] && kill -0 "$p" 2>/dev/null; }
+
+start_app(){
+  if pid_alive; then return 0; fi
+  rm -f "$PIDFILE"
+  [ -n "$DOWNLOAD_DIR" ] || { echo "飞牛没有返回 MeTube 下载目录。请检查应用共享目录或授权目录。" > "${TRIM_TEMP_LOGFILE}"; return 1; }
+  [ -x "$RUNTIME/python/bin/python3.14" ] || { echo "MeTube 内置 Python 3.14 环境缺失，请重新安装。" > "${TRIM_TEMP_LOGFILE}"; return 1; }
+  [ -f "$RUNTIME/source/app/main.py" ] || { echo "MeTube 程序文件缺失，请重新安装。" > "${TRIM_TEMP_LOGFILE}"; return 1; }
+  mkdir -p "$DOWNLOAD_DIR" "$TEMP_DIR" "$STATE_DIR" "$HOME"
+  cd "$RUNTIME/source" || return 1
+  echo "$(date '+%F %T') starting MeTube" >> "$LOGFILE"
+  echo "$(date '+%F %T') download directory: $DOWNLOAD_DIR [$DOWNLOAD_DIR_SOURCE]" >> "$LOGFILE"
+  if command -v setsid >/dev/null 2>&1; then
+    setsid bash "${TRIM_APPDEST}/native/serve.sh" >> "$LOGFILE" 2>&1 &
+  else
+    bash "${TRIM_APPDEST}/native/serve.sh" >> "$LOGFILE" 2>&1 &
+  fi
+  echo $! > "$PIDFILE"
+  sleep 4
+  if ! pid_alive; then
+    rm -f "$PIDFILE"
+    { echo "MeTube 启动失败，日志最后 30 行："; tail -n 30 "$LOGFILE" 2>/dev/null || true; } > "${TRIM_TEMP_LOGFILE}"
+    return 1
+  fi
+}
+
+stop_app(){
+  if pid_alive; then
+    p="$(head -n1 "$PIDFILE"|tr -d '[:space:]')"; kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true
+    n=0; while kill -0 "$p" 2>/dev/null && [ $n -lt 15 ]; do sleep 1; n=$((n+1)); done
+    kill -KILL -- "-$p" 2>/dev/null || kill -KILL "$p" 2>/dev/null || true
+  fi
+  rm -f "$PIDFILE"
+}
+
+case "${1:-}" in
+ start) start_app;;
+ stop) stop_app;;
+ status) if pid_alive; then exit 0; else exit 3; fi;;
+ *) echo "Unknown command: ${1:-}" > "${TRIM_TEMP_LOGFILE}"; exit 1;;
+esac

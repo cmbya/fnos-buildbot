@@ -1,0 +1,19 @@
+[
+  {
+    "stepTitle": "MeTube 原生环境",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "x86_64 原生版，不使用 Docker。FFmpeg 已直接集成在 FPK 中；首次安装仍需 NAS 能访问 GitHub、PyPI/npm，用于下载对应 MeTube 源码、Python 3.13、Node.js 22、Deno 等运行依赖，并构建 WebUI。"
+      },
+      {
+        "type": "tips",
+        "helpText": "下载文件保存到飞牛共享目录 metube/downloads。Web 端口 8081。"
+      },
+      {
+        "type": "tips",
+        "helpText": "为兼容 Clash/Mihomo Fake-IP，本包默认开启 ALLOW_PRIVATE_ADDRESSES=true。只建议在可信内网使用。"
+      }
+    ]
+  }
+]

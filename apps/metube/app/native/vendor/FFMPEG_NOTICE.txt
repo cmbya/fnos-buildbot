@@ -1,0 +1,14 @@
+Bundled FFmpeg binary
+=====================
+
+The FFmpeg executable is injected by GitHub Actions at FPK build time.
+
+Version: 7.0.2-static
+Architecture: Linux x86_64
+Source package used by the builder: imageio-ffmpeg==0.6.0
+Static build provenance: https://johnvansickle.com/ffmpeg/
+Expected SHA256:
+e7e7fb30477f717e6f55f9180a70386c62677ef8a4d4d1a5d948f4098aa3eb99
+
+The final .fpk MUST contain app/native/vendor/ffmpeg.
+fnOS installation does not download FFmpeg.

@@ -1,0 +1,22 @@
+MeTube / fnOS packaging notices
+===============================
+
+MeTube is licensed under GNU AGPL-3.0.
+Upstream: https://github.com/alexta69/metube
+
+This fnOS package is an unofficial native x86_64 packaging.
+
+The generated FPK bundles:
+- FFmpeg 7.0.2-static, Linux x86_64
+- Source package used by the builder: imageio-ffmpeg 0.6.0
+- Static build provenance: https://johnvansickle.com/ffmpeg/
+- Expected SHA256:
+  e7e7fb30477f717e6f55f9180a70386c62677ef8a4d4d1a5d948f4098aa3eb99
+- GNU GPL v3 license text is included at:
+  app/native/vendor/FFMPEG_GPL-3.0.txt
+
+FFprobe is prepared on first fnOS installation from
+@ffprobe-installer/linux-x64@5.2.0 through npm.
+
+MeTube source and the rest of the runtime are prepared for the corresponding
+upstream tag during fnOS installation.
