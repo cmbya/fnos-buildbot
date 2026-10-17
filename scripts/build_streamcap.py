@@ -25,6 +25,14 @@ TOOLS = {
 
 def fetch(key, work):
     url, digest = TOOLS[key]
+    if key == 'python':
+        # Resolve exact upstream filename by its pinned digest. Avoid deriving
+        # the asset's build suffix from presentation-filtered API output.
+        with urllib.request.urlopen('https://api.github.com/repos/astral-sh/python-build-standalone/releases/tags/20261013') as response:
+            assets = json.load(response)['assets']
+        matches = [a for a in assets if a.get('digest') == 'sha256:' + digest]
+        assert len(matches) == 1
+        url = matches[0]['browser_download_url']
     path = work / (key + '.archive')
     run(['curl', '-fL', '--retry', '5', '-o', path, url])
     assert sha(path) == digest, key + ' digest mismatch'
