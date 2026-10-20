@@ -1,0 +1,41 @@
+#!/bin/bash
+set -eu
+export HOME="${TRIM_DATA_SHARE_PATHS%%:*}"
+: "${HOME:?缺少 Ekko 共享目录}"
+export HERMES_WEB_UI_HOME="$HOME/.hermes-web-ui"
+export PATH="${TRIM_APPDEST}/node/bin:${TRIM_APPDEST}/server/bin:$PATH"
+CLI="${TRIM_APPDEST}/server/lib/node_modules/ekko-studio/bin/hermes-web-ui.mjs"
+PIDFILE="$HERMES_WEB_UI_HOME/server.pid"
+port="${port:-8758}"
+error() { printf '%s\n' "$*" >&2; if [[ -n "${TRIM_TEMP_LOGFILE:-}" ]]; then printf '%s\n' "$*" > "$TRIM_TEMP_LOGFILE"; fi; exit 1; }
+[[ "$port" =~ ^[0-9]{1,5}$ ]] && ((10#$port >= 1024 && 10#$port <= 65535)) || error '端口须在 1024–65535 之间'
+running() {
+  [[ -r "$PIDFILE" ]] || return 1
+  read -r pid < "$PIDFILE"
+  [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null || return 1
+  # 不向陈旧 PID 文件中已被其他程序复用的进程发信号。
+  [[ "$(readlink "/proc/$pid/exe")" == "${TRIM_APPDEST}/node/bin/node" ]] || return 1
+  local argv
+  argv="$(tr '\0' ' ' < "/proc/$pid/cmdline")"
+  [[ "$argv" == *"${TRIM_APPDEST}/server/lib/node_modules/ekko-studio/dist/server/index.js"* ]]
+}
+case "${1:-}" in
+  start)
+    running && exit 0
+    # 上游 start 会尝试清理占用端口的进程，先独立检查，禁止误杀其他服务。
+    node -e 'const s=require("net").createServer();s.on("error",()=>process.exit(1));s.listen(Number(process.argv[1]),"0.0.0.0",()=>s.close())' "$port" || error '端口已占用，请在应用配置中选择其他端口'
+    mkdir -p "$HERMES_WEB_UI_HOME"
+    node "$CLI" start "$port" --no-open
+    running || error 'Ekko 启动失败，请查看 Ekko/.hermes-web-ui/server.log'
+    ;;
+  stop)
+    if running; then
+      # 使用上游停机流程，让其管理 bridge 和 gateway 的优雅退出。
+      node "$CLI" stop
+      running && error 'Ekko 未能停止，请查看日志'
+    fi
+    ;;
+  status) if running; then exit 0; else exit 3; fi ;;
+  *) exit 1 ;;
+esac
+exit 0

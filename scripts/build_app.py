@@ -383,7 +383,8 @@ def main() -> int:
 
     log(f"应用 {app['id']}，上游 {app['upstream_repo']}，版本 {version}（tag {tag}）")
     source_build = app.get("strategy") == "github_source"
-    if not source_build:
+    npm_build = app.get("strategy") == "npm_package"
+    if not source_build and not npm_build:
         release = fetch_release(app["upstream_repo"], tag, token)
         asset = find_asset(release, app["asset_regex"])
         log(f"选中上游资产：{asset['name']}（{asset['size']} 字节）")
@@ -392,8 +393,11 @@ def main() -> int:
         work = Path(td)
         stage = work / "stage"
         shutil.copytree(template, stage)
-        if source_build:
-            build_source(app, ROOT / ".work/source", stage, work)
+        if npm_build:
+            from build_ekko import build
+            build(app, version, stage, work)
+        elif source_build:
+            build_source(app, ROOT / '.work/source', stage, work)
         else:
             archive = work / asset["name"]
             http_get(asset["browser_download_url"], archive, token)

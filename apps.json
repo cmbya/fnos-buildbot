@@ -4,6 +4,20 @@
   "comment": "github_release 使用二进制模板；github_fpk 原样转存；github_source 在 Actions 从固定 tag 对应 SHA 编译。",
   "apps": [
     {
+      "id": "ekko",
+      "name": "Ekko Studio",
+      "appname": "Ekko",
+      "strategy": "npm_package",
+      "npm_package": "ekko-studio",
+      "node_version": "24.22.0",
+      "upstream_repo": "EKKOLearnAI/ekko-studio",
+      "template": "apps/ekko",
+      "packer": "tar",
+      "fpk_name": "Ekko_{version}_fnOS_x86.fpk",
+      "desc": "Ekko Studio {version} fnOS x86 原生版，内置 Node 24；Agent 按需安装。仅非商业用途，商业使用须另获上游许可。",
+      "changelog": "Ekko Studio {version}：官方 npm 包与 Node 24 内置，升级保留 Ekko 共享目录。尚未完成 fnOS 真机安装回归。"
+    },
+    {
       "id": "streamcap",
       "name": "StreamCap",
       "appname": "streamcap",

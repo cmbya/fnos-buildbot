@@ -1,0 +1,1 @@
+[{"stepTitle":"Ekko Studio","items":[{"type":"text","field":"port","label":"Web 端口","initValue":"8758","rules":[{"required":true,"message":"请输入端口"},{"pattern":"^[0-9]{1,5}$","message":"请输入有效端口"}]},{"type":"tips","helpText":"内置 Node 24 和 Web 工作台；Agent 按需联网安装。使用 Ekko 共享目录保留数据，覆盖安装前请备份既有 Ekko 数据。仅非商业用途，商业使用须另获上游许可。请勿同时运行访问同一数据目录的 Hermes Studio/Ekko 实例。"}]}]

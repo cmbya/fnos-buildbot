@@ -93,12 +93,19 @@ def main() -> int:
     changed: list[dict] = []
     for app in apps:
         aid = app["id"]
-        if app.get("strategy") not in ("github_release", "github_fpk", "github_source"):
+        if app.get("strategy") not in ("github_release", "github_fpk", "github_source", "npm_package"):
             log(f"[跳过] {aid}：strategy={app.get('strategy')} 暂不支持")
             continue
         try:
             source_sha = None
-            if app.get("strategy") == "github_source":
+            if app.get("strategy") == "npm_package":
+                with urllib.request.urlopen(f"https://registry.npmjs.org/{app['npm_package']}/latest", timeout=60) as response:
+                    metadata = json.load(response)
+                version = metadata['version']
+                if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version):
+                    raise RuntimeError('npm latest 不是正式版本')
+                tag = version
+            elif app.get("strategy") == "github_source":
                 if app.get('source_release_only'):
                     tag, version = latest_release(app['upstream_repo'], app.get('tag_prefix', ''), token)
                 else:
