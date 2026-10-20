@@ -37,6 +37,10 @@ def build(app, version, stage, work):
     info = json.loads((package / 'package.json').read_text())
     if info['version'] != version or info['name'] != app['npm_package']:
         raise RuntimeError('Installed npm package identity mismatch')
+    from patch_ekko_history import apply as patch_history
+    patch_history(package)
+    subprocess.run([str(node), '--check', str(package / 'dist/server/index.js')], env=env, check=True)
+    subprocess.run([str(node), str(Path(__file__).with_name('test_ekko_history.cjs')), str(package / 'dist/server/index.js')], env=env, check=True)
     shutil.copy2(package / 'LICENSE', stage / 'LICENSE')
     # Exercise the native PTY rather than claiming that an import is sufficient.
     test = '''const pty=require('node-pty');require('sharp');
@@ -44,7 +48,7 @@ const p=pty.spawn('/bin/sh',['-c','printf EKKO_PTY_OK'],{cols:80,rows:24,env:pro
 let out='';const timer=setTimeout(()=>{p.kill();process.exit(1)},10000);
 p.onData(s=>out+=s);p.onExit(e=>{clearTimeout(timer);if(e.exitCode!==0||!out.includes('EKKO_PTY_OK'))process.exit(1);console.log('Native PTY and sharp PASS')});'''
     subprocess.run([str(node), '-e', test], cwd=package, env=env, check=True, timeout=20)
-    metadata = {'package': info['name'], 'version': version, 'node_version': node_version, 'node_sha256': actual}
+    metadata = {'package': info['name'], 'version': version, 'node_version': node_version, 'node_sha256': actual, 'patches': ['history-reasoning-classification-v1']}
     inventory = subprocess.check_output(['npm', 'ls', '-g', '--all', '--json', '--prefix', str(server)], env=env, text=True)
     (stage / 'app/native').mkdir(parents=True, exist_ok=True)
     (stage / 'app/native/dependencies.json').write_text(inventory)
