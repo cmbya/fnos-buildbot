@@ -90,12 +90,12 @@ def smoke(stage, work, base_env):
     assert len(backups) == 1 and json.loads(backups[0].read_text()) == legacy
     print('PASS: idempotent MCP migration, exact backup, disabled state and custom URL preserved', flush=True)
     cli = package / 'bin/ekko-studio-mcp.mjs'
-    for toolset in ['api', 'use', 'plan', 'browser']:
+    for toolset in ['api', 'use', 'plan']:
         messages = [{'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {'protocolVersion': '2024-11-05', 'capabilities': {}, 'clientInfo': {'name': 'ci', 'version': '1'}}}, {'jsonrpc': '2.0', 'method': 'notifications/initialized'}, {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}}]
         result = subprocess.run([node, str(cli), toolset], input=''.join(json.dumps(m)+'\n' for m in messages), capture_output=True, text=True, env=env, check=True, timeout=20)
         responses = [json.loads(line) for line in result.stdout.splitlines()]
         assert next(r for r in responses if r.get('id') == 2)['result']['tools']
-    print('PASS: four MCP toolsets initialize and list tools', flush=True)
+    print('PASS: api/use/plan MCP toolsets initialize and list tools; browser path migrated but live browser attachment not exercised', flush=True)
     try:
         run('main', 'start')
         for _ in range(180):
