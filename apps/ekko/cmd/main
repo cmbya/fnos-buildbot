@@ -6,7 +6,7 @@ export HERMES_WEB_UI_HOME="$HOME/.hermes-web-ui"
 export PATH="${TRIM_APPDEST}/node/bin:${TRIM_APPDEST}/server/bin:$PATH"
 CLI="${TRIM_APPDEST}/server/lib/node_modules/ekko-studio/bin/hermes-web-ui.mjs"
 PIDFILE="$HERMES_WEB_UI_HOME/server.pid"
-port="${port:-8770}"
+port="${port:-8758}"
 # Allow bridge/gateway shutdown to finish before the upstream CLI force-kills.
 export HERMES_WEB_UI_STOP_GRACE_MS=90000
 error() { printf '%s\n' "$*" >&2; if [[ -n "${TRIM_TEMP_LOGFILE:-}" ]]; then printf '%s\n' "$*" > "$TRIM_TEMP_LOGFILE"; fi; exit 1; }

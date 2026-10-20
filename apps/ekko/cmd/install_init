@@ -1,6 +1,6 @@
 #!/bin/bash
 set -eu
-p="${port:-8770}"
+p="${port:-8758}"
 if [[ ! "$p" =~ ^[0-9]{1,5}$ ]] || ((10#$p < 1024 || 10#$p > 65535)); then
   printf '%s\n' '端口须在 1024–65535 之间' > "$TRIM_TEMP_LOGFILE"
   exit 1

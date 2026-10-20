@@ -13,7 +13,7 @@
       "upstream_repo": "EKKOLearnAI/ekko-studio",
       "template": "apps/ekko",
       "packer": "tar",
-      "fpk_name": "ekko-{version}-x86.fpk",
+      "fpk_name": "Ekko-{version}-x86.fpk",
       "desc": "Ekko Studio {version} fnOS x86 原生版，内置 Node 24；Agent 按需安装。仅非商业用途，商业使用须另获上游许可。",
       "changelog": "Ekko Studio {version}：官方 npm 包与 Node 24 内置，升级保留 Ekko 共享目录。尚未完成 fnOS 真机安装回归。"
     },

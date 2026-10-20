@@ -1,1 +1,1 @@
-[{"stepTitle":"Ekko Studio 设置","items":[{"type":"text","field":"port","label":"Web 端口","initValue":"8770","rules":[{"required":true,"message":"请输入端口"},{"pattern":"^[0-9]{1,5}$","message":"请输入有效端口"}]}]}]
+[{"stepTitle":"Ekko Studio 设置","items":[{"type":"text","field":"port","label":"Web 端口","initValue":"8758","rules":[{"required":true,"message":"请输入端口"},{"pattern":"^[0-9]{1,5}$","message":"请输入有效端口"}]}]}]
