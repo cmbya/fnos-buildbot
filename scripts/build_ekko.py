@@ -32,7 +32,7 @@ def build(app, version, stage, work):
     node = stage / 'app/node/bin/node'
     env = dict(os.environ, PATH=f'{node.parent}:{os.environ["PATH"]}')
     server = stage / 'app/server'
-    subprocess.run(['npm', 'install', '-g', f'{app["npm_package"]}@{version}', '--prefix', str(server), '--no-audit', '--no-fund'], env=env, check=True)
+    subprocess.run(['npm', 'install', '-g', f'{app["npm_package"]}@{version}', '--prefix', str(server), '--no-audit', '--no-fund', '--allow-scripts=agent-browser,node-pty,protobufjs,vue-demi'], env=env, check=True)
     package = server / 'lib/node_modules' / app['npm_package']
     info = json.loads((package / 'package.json').read_text())
     if info['version'] != version or info['name'] != app['npm_package']:
@@ -46,6 +46,7 @@ p.onData(s=>out+=s);p.onExit(e=>{clearTimeout(timer);if(e.exitCode!==0||!out.inc
     subprocess.run([str(node), '-e', test], cwd=package, env=env, check=True, timeout=20)
     metadata = {'package': info['name'], 'version': version, 'node_version': node_version, 'node_sha256': actual}
     inventory = subprocess.check_output(['npm', 'ls', '-g', '--all', '--json', '--prefix', str(server)], env=env, text=True)
+    (stage / 'app/native').mkdir(parents=True, exist_ok=True)
     (stage / 'app/native/dependencies.json').write_text(inventory)
     (stage / 'app/native/BUILD.json').write_text(json.dumps(metadata, indent=2) + '\n')
     for script in (stage / 'cmd').iterdir():
