@@ -1,2 +1,8 @@
 #!/bin/bash
+set -eu
+# Apply a new port only when the application is already running.
+if "$(dirname "$0")/main" status; then
+  "$(dirname "$0")/main" stop
+  "$(dirname "$0")/main" start
+fi
 exit 0

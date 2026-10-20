@@ -59,6 +59,13 @@ def smoke(stage, work, base_env):
     home.mkdir()
     marker = home / 'preserve-test'
     marker.write_text('keep')
+    # Seed the exact legacy configuration, including disabled browser entry.
+    profile = home / '.hermes'
+    profile.mkdir()
+    legacy = {'mcp_servers': {name: {'command': '/old/runtime/node', 'args': ['/vol2/@appcenter/Ekko/server/lib/node_modules/hermes-web-ui/bin/ekko-studio-mcp.mjs', toolset], 'enabled': toolset != 'browser', 'env': {'HERMES_WEB_UI_URL': 'http://127.0.0.1:8770'}} for name, toolset in [('ekko-studio-use', 'use'), ('ekko-studio-interaction', 'plan'), ('ekko-studio-browser', 'browser')]}, 'untouched': 'preserve-me'}
+    config = profile / 'config.yaml'
+    config.write_text(json.dumps(legacy))
+    config.chmod(0o600)
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
@@ -69,6 +76,26 @@ def smoke(stage, work, base_env):
     for name in ['install_init', 'install_callback', 'upgrade_callback', 'upgrade_callback']:
         run(name)
     assert marker.read_text() == 'keep'
+    node = str(stage / 'app/node/bin/node')
+    package = stage / 'app/server/lib/node_modules/ekko-studio'
+    # YAML serialization is parsed by the same installed library.
+    migrated = json.loads(subprocess.check_output([node, '-e', 'console.log(JSON.stringify(require("yaml").parse(require("fs").readFileSync(process.argv[1],"utf8"))))', str(config)], cwd=package, text=True))
+    assert migrated['untouched'] == 'preserve-me'
+    for name, entry in migrated['mcp_servers'].items():
+        assert entry['command'] == node
+        assert '/ekko-studio/bin/' in entry['args'][0]
+        assert entry['env']['HERMES_WEB_UI_URL'] == 'http://127.0.0.1:8770'
+    assert not migrated['mcp_servers']['ekko-studio-browser']['enabled']
+    backups = list(profile.glob('config.yaml.before-ekko-path-migration-*'))
+    assert len(backups) == 1 and json.loads(backups[0].read_text()) == legacy
+    print('PASS: idempotent MCP migration, exact backup, disabled state and custom URL preserved', flush=True)
+    cli = package / 'bin/ekko-studio-mcp.mjs'
+    for toolset in ['api', 'use', 'plan', 'browser']:
+        messages = [{'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {'protocolVersion': '2024-11-05', 'capabilities': {}, 'clientInfo': {'name': 'ci', 'version': '1'}}}, {'jsonrpc': '2.0', 'method': 'notifications/initialized'}, {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}}]
+        result = subprocess.run([node, str(cli), toolset], input=''.join(json.dumps(m)+'\n' for m in messages), capture_output=True, text=True, env=env, check=True, timeout=20)
+        responses = [json.loads(line) for line in result.stdout.splitlines()]
+        assert next(r for r in responses if r.get('id') == 2)['result']['tools']
+    print('PASS: four MCP toolsets initialize and list tools', flush=True)
     try:
         run('main', 'start')
         for _ in range(180):
@@ -83,6 +110,17 @@ def smoke(stage, work, base_env):
         else:
             raise RuntimeError('Ekko health/frontend readiness timeout')
         run('main', 'status')
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            new_port = sock.getsockname()[1]
+        env['port'] = str(new_port)
+        run('config_init')
+        run('config_callback')
+        with urllib.request.urlopen(f'http://127.0.0.1:{new_port}/health', timeout=10) as response:
+            assert response.status == 200
+        with socket.socket() as sock:
+            assert sock.connect_ex(('127.0.0.1', port)) != 0
+        print('SMOKE PASS: configuration changes live port and releases old port', flush=True)
         print('SMOKE PASS: lifecycle start/status, HTTP health and frontend, repeated upgrade preserves data', flush=True)
     finally:
         run('main', 'stop')
