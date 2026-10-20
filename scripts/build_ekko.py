@@ -23,8 +23,11 @@ def build(app, version, stage, work):
     actual = hashlib.sha256(archive.read_bytes()).hexdigest()
     if actual != expected:
         raise RuntimeError('Node archive SHA256 mismatch')
-    with tarfile.open(archive) as tf:
-        tf.extractall(work / 'node-download', filter='data')
+    # Debian 12's Python 3.11 tarfile lacks the filter keyword; the archive
+    # is authenticated above against Node's official SHA256 inventory.
+    download = work / 'node-download'
+    download.mkdir()
+    subprocess.run(['tar', '-xJf', str(archive), '-C', str(download)], check=True)
     shutil.move(str(work / 'node-download' / filename.removesuffix('.tar.xz')), stage / 'app/node')
     node = stage / 'app/node/bin/node'
     env = dict(os.environ, PATH=f'{node.parent}:{os.environ["PATH"]}')
