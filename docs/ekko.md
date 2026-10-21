@@ -15,4 +15,6 @@
 - FPK 内置 Web 工作台和 Node，不预装所有 Agent、模型或浏览器；首次配置这些功能仍可能需要联网。
 - 保留上游 BSL 1.1；仅非商业用途授权，商业使用需向 EKKOLearnAI 另行获取许可。图标来自上游 npm 包。
 
-手动入口：Auto build fnOS FPK，app=ekko。正常升级由每日调度发现 npm 新版本后构建。
+手动入口：Auto build fnOS FPK，`app=ekko`（应用 id 区分大小写，不是 `Ekko`）；重新编译同版本时 `force=true`，验证构建选 `publish=false`。检查器自动查询最新 npm 版本。正常升级由每日调度发现 npm 新版本后构建。
+
+压缩布局跟随原包：服务先压为 `server.tar.xz`，Node 保留经过 SHA256 校验的官方 `node.tar.xz`；安装时展开到程序目录与持久运行时目录。压缩前后各运行一次隔离生命周期测试，最终FPK不重复携带展开的server/node。压缩归档在安装后保留，供同版本修复/重复升级使用，不删除用户全局工具。

@@ -57,6 +57,18 @@ p.onData(s=>out+=s);p.onExit(e=>{clearTimeout(timer);if(e.exitCode!==0||!out.inc
         script.chmod(0o755)
     subprocess.run(['python3', str(Path(__file__).with_name('test_ekko_layout.py')), str(stage / 'app/node'), str(package)], env=env, check=True, timeout=180)
     smoke(stage, work, env)
+    # Match the original FPK's XZ payload layout; retain official Node archive.
+    subprocess.run(['tar', '-cJf', str(stage / 'app/server.tar.xz'), '-C', str(stage / 'app'), 'server'], check=True)
+    shutil.copy2(archive, stage / 'app/node.tar.xz')
+    (stage / 'app/native/node-version').write_text(f'v{node_version}\n')
+    shutil.rmtree(server)
+    shutil.rmtree(stage / 'app/node')
+    # Re-run full lifecycle tests against compressed installation inputs.
+    packed_work = work / 'packed-smoke'
+    packed_work.mkdir()
+    smoke(stage, packed_work, env)
+    # Installation expands server in target; ship only compressed input.
+    shutil.rmtree(server)
 
 
 def smoke(stage, work, base_env):
@@ -74,7 +86,7 @@ def smoke(stage, work, base_env):
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
-    env = dict(base_env, HOME=str(home), TRIM_APPDEST=str(stage / 'app'), TRIM_PKGVAR=str(work / 'var'), TRIM_DATA_SHARE_PATHS=str(home), TRIM_TEMP_LOGFILE=str(work / 'error.log'), port=str(port), HERMES_WEB_UI_DISABLE_GATEWAY_AUTOSTART='1')
+    env = dict(base_env, HOME=str(home), HERMES_HOME=str(profile), TRIM_APPDEST=str(stage / 'app'), TRIM_PKGVAR=str(work / 'var'), TRIM_DATA_SHARE_PATHS=str(home), TRIM_TEMP_LOGFILE=str(work / 'error.log'), port=str(port), HERMES_WEB_UI_DISABLE_GATEWAY_AUTOSTART='1')
     main = stage / 'cmd/main'
     def run(name, *args, check=True):
         return subprocess.run(['bash', str(stage / 'cmd' / name), *args], env=env, check=check, timeout=240)
