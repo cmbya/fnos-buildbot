@@ -55,6 +55,7 @@ p.onData(s=>out+=s);p.onExit(e=>{clearTimeout(timer);if(e.exitCode!==0||!out.inc
     (stage / 'app/native/BUILD.json').write_text(json.dumps(metadata, indent=2) + '\n')
     for script in (stage / 'cmd').iterdir():
         script.chmod(0o755)
+    subprocess.run(['python3', str(Path(__file__).with_name('test_ekko_layout.py')), str(stage / 'app/node'), str(package)], env=env, check=True, timeout=180)
     smoke(stage, work, env)
 
 
@@ -77,10 +78,22 @@ def smoke(stage, work, base_env):
     main = stage / 'cmd/main'
     def run(name, *args, check=True):
         return subprocess.run(['bash', str(stage / 'cmd' / name), *args], env=env, check=check, timeout=240)
-    for name in ['install_init', 'install_callback', 'upgrade_callback', 'upgrade_callback']:
+    run('install_init')
+    run('install_callback')
+    runtime = Path(env['TRIM_PKGVAR']) / 'node'
+    # Simulate a previously installed CLI in the original package's persistent prefix.
+    codex = runtime / 'bin/codex'
+    fixture = '#!/bin/sh\nprintf "codex-cli 0.0.0-fixture\\n"\n'
+    codex.write_text(fixture)
+    codex.chmod(0o755)
+    for name in ['upgrade_callback', 'upgrade_callback']:
         run(name)
+    assert codex.read_text() == fixture
+    runtime_env = dict(env, PATH=f'{runtime}/bin:{env["PATH"]}', NPM_CONFIG_PREFIX=str(runtime))
+    assert subprocess.check_output(['npm', 'prefix', '-g'], env=runtime_env, text=True).strip() == str(runtime)
+    assert 'codex-cli' in subprocess.check_output(['codex', '--version'], env=runtime_env, text=True)
     assert marker.read_text() == 'keep'
-    node = str(stage / 'app/node/bin/node')
+    node = str(runtime / 'bin/node')
     package = stage / 'app/server/lib/node_modules/ekko-studio'
     # YAML serialization is parsed by the same installed library.
     migrated = json.loads(subprocess.check_output([node, '-e', 'console.log(JSON.stringify(require("yaml").parse(require("fs").readFileSync(process.argv[1],"utf8"))))', str(config)], cwd=package, text=True))

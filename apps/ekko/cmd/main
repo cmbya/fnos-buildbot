@@ -3,7 +3,9 @@ set -eu
 export HOME="${TRIM_DATA_SHARE_PATHS%%:*}"
 : "${HOME:?缺少 Ekko 共享目录}"
 export HERMES_WEB_UI_HOME="$HOME/.hermes-web-ui"
-export PATH="${TRIM_APPDEST}/node/bin:${TRIM_APPDEST}/server/bin:$PATH"
+: "${TRIM_PKGVAR:?缺少 Ekko 持久目录}"
+export NPM_CONFIG_PREFIX="${TRIM_PKGVAR}/node"
+export PATH="${TRIM_PKGVAR}/node/bin:${TRIM_APPDEST}/server/bin:$PATH"
 CLI="${TRIM_APPDEST}/server/lib/node_modules/ekko-studio/bin/hermes-web-ui.mjs"
 PIDFILE="$HERMES_WEB_UI_HOME/server.pid"
 port="${port:-8770}"
@@ -16,7 +18,10 @@ running() {
   read -r pid < "$PIDFILE"
   [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null || return 1
   # 不向陈旧 PID 文件中已被其他程序复用的进程发信号。
-  [[ "$(readlink "/proc/$pid/exe")" == "${TRIM_APPDEST}/node/bin/node" ]] || return 1
+  local executable
+  executable="$(readlink "/proc/$pid/exe")"
+  # Accept the previous target runtime during the first upgrade stop only.
+  [[ "$executable" == "${TRIM_PKGVAR}/node/bin/node" || "$executable" == "${TRIM_APPDEST}/node/bin/node" ]] || return 1
   local argv
   argv="$(tr '\0' ' ' < "/proc/$pid/cmdline")"
   [[ "$argv" == *"${TRIM_APPDEST}/server/lib/node_modules/ekko-studio/dist/server/index.js"* ]]

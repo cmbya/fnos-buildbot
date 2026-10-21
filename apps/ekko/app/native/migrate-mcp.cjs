@@ -20,9 +20,15 @@ if (YAML.isMap(servers)) for (const item of servers.items) {
   if (!YAML.isSeq(args)) continue;
   const old = args.items[0]?.value;
   // Restrict to this application's known legacy MCP script, never custom servers.
-  if (typeof old !== 'string' || !/^\/(?:vol\d+\/@appcenter|var\/apps)\/Ekko\/(?:target\/)?server\/lib\/node_modules\/hermes-web-ui\/bin\/ekko-studio-mcp\.mjs$/.test(old)) continue;
-  args.set(0, path.join(process.env.TRIM_APPDEST, 'server/lib/node_modules/ekko-studio/bin/ekko-studio-mcp.mjs'));
-  entry.set('command', path.join(process.env.TRIM_APPDEST, 'node/bin/node'));
+  if (typeof old !== 'string' || !/^\/(?:vol\d+\/@appcenter|var\/apps)\/Ekko\/(?:target\/)?server\/lib\/node_modules\/(?:hermes-web-ui|ekko-studio)\/bin\/ekko-studio-mcp\.mjs$/.test(old)) continue;
+  const script = path.join(process.env.TRIM_APPDEST, 'server/lib/node_modules/ekko-studio/bin/ekko-studio-mcp.mjs');
+  const node = path.join(process.env.TRIM_PKGVAR, 'node/bin/node');
+  const command = entry.get('command');
+  const knownCommand = command === node || command === path.join(process.env.TRIM_APPDEST, 'node/bin/node') || command === '/old/runtime/node';
+  if (!knownCommand && old === script) continue; // Preserve custom runtimes.
+  if (old === script && command === node) continue;
+  args.set(0, script);
+  entry.set('command', node);
   changed++;
 }
 if (changed) {

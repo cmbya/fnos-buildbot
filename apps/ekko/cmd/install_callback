@@ -1,6 +1,19 @@
 #!/bin/bash
 set -eu
-"${TRIM_APPDEST}/node/bin/node" --version
-"${TRIM_APPDEST}/node/bin/node" "${TRIM_APPDEST}/native/migrate-mcp.cjs"
-# 程序在 target，持久数据位于 fnOS 管理的共享目录，不解包覆盖 HOME。
+: "${TRIM_PKGVAR:?缺少 Ekko 持久目录}"
+seed="${TRIM_APPDEST}/node"
+runtime="${TRIM_PKGVAR}/node"
+# Keep the original package's persistent npm tools. Never remove this directory.
+expected="$("$seed/bin/node" --version)"
+current="$("$runtime/bin/node" --version 2>/dev/null || true)"
+if [[ "$current" != "$expected" || ! -f "$runtime/lib/node_modules/npm/bin/npm-cli.js" ]]; then
+  mkdir -p "$runtime"
+  cp -a "$seed/." "$runtime/"
+fi
+export NPM_CONFIG_PREFIX="$runtime"
+export PATH="$runtime/bin:${TRIM_APPDEST}/server/bin:$PATH"
+"$runtime/bin/node" --version
+"$runtime/bin/npm" --version
+"$runtime/bin/node" "${TRIM_APPDEST}/native/migrate-mcp.cjs"
+# HOME/shared data and installed global packages are retained across upgrades.
 exit 0
