@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import time
 import urllib.request
+import urllib.error
 import zipfile
 from build_source import run
 
@@ -91,7 +92,10 @@ def build(app, source, stage, work):
     actual=subprocess.check_output(['node','--version'],text=True).strip()
     assert actual == node_version, (actual,node_version)
     print('Bundled runtime',actual,'ABI',subprocess.check_output(['node','-p','process.versions.modules'],text=True),flush=True)
+    run(['python3',str(ROOT/'test_bililive_login.py'),str(source)],source)
     patch_time(source)
+    from patch_bililive_login import patch as patch_login
+    patch_login(source)
     run(['pnpm','install','--frozen-lockfile','--ignore-scripts'],source)
     run(['pnpm','run','build:base'],source)
     run(['node','fnos-time-test.cjs'],source)
@@ -197,6 +201,17 @@ def build(app, source, stage, work):
                     except OSError: pass
                     time.sleep(1)
                 else: raise RuntimeError('Readiness failed '+url)
+            index = urllib.request.urlopen('http://127.0.0.1:3000/').read()
+            assert b'ci-isolated-test' not in index, 'Server secret leaked into public HTML'
+            for key, expected in [(None,401),('wrong-key',401),('ci-isolated-test',200)]:
+                request=urllib.request.Request('http://127.0.0.1:3000/common/version',headers={'Authorization':key} if key else {})
+                try:
+                    response=urllib.request.urlopen(request,timeout=5); status=response.status; body=response.read()
+                except urllib.error.HTTPError as error:
+                    status=error.code; body=error.read()
+                assert status==expected,(status,expected)
+                if status==200: assert app['version'].encode() in body
+            print('AUTH PASS same-origin correct key 200; missing/wrong key 401; no HTML secret disclosure',flush=True)
             assert list((runtime/'data').rglob('*.db')), 'SQLite DB not initialized'
             print('SMOKE PASS backend HTTP 200, frontend HTTP 200, persistent SQLite, offline repeat installation preserves data and recordings',flush=True)
         finally:

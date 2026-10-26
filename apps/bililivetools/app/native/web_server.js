@@ -83,15 +83,11 @@ function sendKnownFile(file, st, res) {
 }
 
 function buildBootstrapScript() {
-  // The upstream WebUI requires both localStorage.api and localStorage.key.
-  // Its Login component deletes "api" and reloads when only api exists, so native5's
-  // api-only marker caused an infinite reload/flicker loop.  Inject both values here.
-  // Also escape a stale #/login route before Vue Router starts, otherwise the Login
-  // component would still execute its removeItem('api') + reload behavior.
-  const keyLiteral = JSON.stringify(PASSKEY);
+  // Same-origin API routing only. Login is patched not to reload or erase api.
+  // Preserve a browser's existing login without disclosing the backend secret.
   return `<script id="fnos-native1-bootstrap">(function(){try{` +
     `localStorage.setItem("api",window.location.origin);` +
-    `localStorage.setItem("key",${keyLiteral});` +
+    // Login uses the user-entered key; never disclose the server secret in HTML.
     `if(/^#\\/login(?:[?]|$)/.test(window.location.hash)){` +
       `history.replaceState(null,"",window.location.pathname+window.location.search+"#/home");` +
     `}` +
