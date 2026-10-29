@@ -10,6 +10,17 @@ export SUB_STORE_FRONTEND_PATH="${TRIM_APPDEST}/www"
 export SUB_STORE_DATA_BASE_PATH="$TRIM_PKGVAR"
 export SUB_STORE_BACKEND_API_PORT="$port"
 export SUB_STORE_FRONTEND_BACKEND_PATH=/path
+# Upstream checks Origin even for same-origin ES modules. Recompute on each
+# start so port changes and the NAS's current interface addresses are covered.
+# An explicit administrator override supports reverse-proxy domains as well.
+if [[ -z "${SUB_STORE_CORS_ALLOWED_ORIGINS:-}" ]]; then
+    cors_origins="http://localhost:$port,http://127.0.0.1:$port,http://[::1]:$port"
+    for host in $(hostname -I 2>/dev/null) $(hostname 2>/dev/null) $(hostname -f 2>/dev/null); do
+        [[ "$host" == *:* ]] && host="[$host]"
+        cors_origins+=",http://$host:$port"
+    done
+    export SUB_STORE_CORS_ALLOWED_ORIGINS="$cors_origins"
+fi
 PID_FILE="$TRIM_PKGVAR/app.pid"
 LOG_FILE="$TRIM_PKGVAR/info.log"
 SERVER="$TRIM_APPDEST/server/sub-store.bundle.js"

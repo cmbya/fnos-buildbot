@@ -14,9 +14,11 @@
 ## 安全说明
 
 这是无额外登录层的本地管理服务。`/path` 不是密码；不要直接将端口暴露到公网。远程访问需可信 VPN 或带鉴权的反向代理。
-不沿用参考包的任意来源 CORS `*`，使用上游默认策略；同源前端无需开启任意跨域。
+启动时按当前 NAS 的接口 IP、主机名和配置端口生成明确的 CORS 允许来源（含 localhost/IPv4/IPv6），不使用 `*`。上游也会检查同源模块请求的 Origin，因此不能直接使用不含 NAS 地址的上游默认白名单。端口或接口地址变化后需重新启动应用生成新列表；反代域名可通过管理员环境变量 `SUB_STORE_CORS_ALLOWED_ORIGINS` 明确指定，多个来源逗号分隔。CORS 不是登录鉴权。
 
 ## 构建与发布
+
+修复旧包白屏后重建同版本时：`app=substore`、`force=true`、`dry_run=false`、`publish=true`。下载新生成的包覆盖安装（不必卸载）；浏览器使用强制刷新或无痕窗口，避免旧模块失败缓存。
 
 复用 `Auto build fnOS FPK`：`app=substore`。默认定时检查后端新正式版本，无更新则跳过；前端单独更新时需 `force=true` 重打当前后端版本。
 产物名 `Sub-Store-{version}-all.fpk`，发布到 FnDepot 日期 Release，沿用索引更新流程。当前 FnDepot 客户端源以 x86 为收录范围；模板本身为 all，不扩张商店现有平台范围。

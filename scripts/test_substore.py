@@ -14,6 +14,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import urllib.request
+import urllib.error
 import zipfile
 
 from build_substore import patch_frontend, unpack_frontend, checked_download
@@ -107,7 +108,7 @@ class SubStoreTests(unittest.TestCase):
                 self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
             def request(path, data=None):
                 req = urllib.request.Request(f'http://127.0.0.1:{port}{path}', data=json.dumps(data).encode() if data else None,
-                                             headers={'Content-Type': 'application/json'})
+                                             headers={'Content-Type': 'application/json', 'Origin': f'http://127.0.0.1:{port}'})
                 with urllib.request.urlopen(req, timeout=5) as r:
                     return r.status, r.read()
             try:
@@ -119,6 +120,23 @@ class SubStoreTests(unittest.TestCase):
                 status, body = request('/path/api/utils/env')
                 self.assertEqual(status, 200)
                 self.assertIn(build['backend_tag'].encode(), body)
+                # Exercise browser-style module requests, including LAN/IPv6 and
+                # rejection of untrusted origins; no-Origin HTTP 200 is insufficient.
+                hosts = subprocess.check_output(['hostname', '-I'], text=True).split()
+                origins = [f'http://localhost:{port}', f'http://[::1]:{port}']
+                origins += [f'http://[{h}]:{port}' if ':' in h else f'http://{h}:{port}' for h in hosts]
+                main_chunk = build['frontend_patch']['file']
+                for origin in origins:
+                    for path in ['/index.js', '/' + main_chunk, '/path/api/utils/env']:
+                        req = urllib.request.Request(f'http://127.0.0.1:{port}{path}', headers={'Origin': origin})
+                        with urllib.request.urlopen(req, timeout=5) as r:
+                            self.assertEqual(r.status, 200)
+                            self.assertEqual(r.headers['Access-Control-Allow-Origin'], origin)
+                for origin in ['https://untrusted.invalid', f'http://127.0.0.1:{port + 1}']:
+                    req = urllib.request.Request(f'http://127.0.0.1:{port}/index.js', headers={'Origin': origin})
+                    with self.assertRaises(urllib.error.HTTPError) as error:
+                        urllib.request.urlopen(req, timeout=5)
+                    self.assertEqual(error.exception.code, 403)
                 status, body = request('/path/api/subs', {'name': 'packaging-test', 'source': 'local', 'content': '[]'})
                 self.assertEqual(status, 201, body)
                 run('stop')
