@@ -93,11 +93,12 @@ def main() -> int:
     changed: list[dict] = []
     for app in apps:
         aid = app["id"]
-        if app.get("strategy") not in ("github_release", "github_fpk", "github_source", "npm_package"):
+        if app.get("strategy") not in ("github_release", "github_fpk", "github_source", "npm_package", "substore_release"):
             log(f"[跳过] {aid}：strategy={app.get('strategy')} 暂不支持")
             continue
         try:
             source_sha = None
+            frontend_tag = None
             if app.get("strategy") == "npm_package":
                 with urllib.request.urlopen(f"https://registry.npmjs.org/{app['npm_package']}/latest", timeout=60) as response:
                     metadata = json.load(response)
@@ -119,6 +120,8 @@ def main() -> int:
                 source_sha = commit["sha"]
             else:
                 tag, version = latest_release(app["upstream_repo"], app.get("tag_prefix", ""), token)
+            if app.get("strategy") == "substore_release":
+                frontend_tag = latest_release(app["frontend_repo"], "", token)[0]
         except Exception as e:  # noqa: BLE001
             log(f"[错误] {aid}：读取上游版本失败：{e}")
             continue
@@ -139,6 +142,8 @@ def main() -> int:
         item["version"] = version
         if source_sha:
             item["source_sha"] = source_sha
+        if app.get("strategy") == "substore_release":
+            item["frontend_tag"] = frontend_tag
         changed.append(item)
 
     payload = json.dumps(changed, ensure_ascii=False, separators=(",", ":"))

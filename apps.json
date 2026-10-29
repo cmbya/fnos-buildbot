@@ -4,6 +4,21 @@
   "comment": "github_release 使用二进制模板；github_fpk 原样转存；github_source 在 Actions 从固定 tag 对应 SHA 编译。",
   "apps": [
     {
+      "id": "substore",
+      "name": "Sub-Store",
+      "appname": "Sub-Store",
+      "strategy": "substore_release",
+      "upstream_repo": "sub-store-org/Sub-Store",
+      "frontend_repo": "sub-store-org/Sub-Store-Front-End",
+      "tag_prefix": "",
+      "template": "apps/substore",
+      "platform": "all",
+      "packer": "tar",
+      "fpk_name": "Sub-Store-{version}-all.fpk",
+      "desc": "Sub-Store {version} 原生订阅管理器，前后端内置，依赖飞牛 Node.js 24；默认端口 21678，仅建议本地使用。",
+      "changelog": "Sub-Store {version}：封装官方前后端正式 Release；合并端口、默认 /path，升级保留数据。尚未完成 fnOS 真机安装与升级回归。"
+    },
+    {
       "id": "ekko",
       "name": "Ekko Studio",
       "appname": "Ekko",

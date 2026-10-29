@@ -1,0 +1,20 @@
+{
+  ".url": {
+    "Sub-Store.Application": {
+      "noDisplay": false,
+      "allUsers": false,
+      "fileTypes": [],
+      "control": {
+        "accessPerm": "editable"
+      },
+      "protocol": "http",
+      "gatewayPrefix": "",
+      "gatewaySocket": "",
+      "title": "Sub-Store",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "port": "${port}",
+      "url": ""
+    }
+  }
+}

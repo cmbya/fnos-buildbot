@@ -57,6 +57,11 @@
 | `github_source_tag` | 计划中 | StreamCap、MeTube：源码 tag + 补丁 / FFmpeg 校验 |
 | `github_source` | ✅ 已实现 | LitePan：检测源码 tag，解析固定 commit SHA，在 Actions 编译前端和静态 Go 程序 |
 
+## Sub-Store 原生封装
+
+`substore` 使用官方前后端正式 Release，校验 GitHub asset SHA256；依赖飞牛 `nodejs_v24`，单端口 `21678`，后端默认 `/path`，模板为 `all`。复用现有调度、日期 Release 和商店索引，无 Docker/Nginx。
+详见 [Sub-Store 使用与实现说明](docs/substore.md)。无额外登录层，不要直接暴露公网。
+
 ## 上游版本命名
 
 ### LitePan 源码构建

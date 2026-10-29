@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+if [[ "${wizard_data_action:-keep}" == delete ]]; then
+    : "${TRIM_PKGVAR:?missing application data directory}"
+    [[ "$TRIM_PKGVAR" == /* && "$TRIM_PKGVAR" != / && "$TRIM_PKGVAR" != */../* && "$TRIM_PKGVAR" != */.. && "$TRIM_PKGVAR" != */./* ]] || exit 1
+    # Keep the managed directory itself; remove only its contents after explicit consent.
+    find "$TRIM_PKGVAR" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+fi

@@ -278,7 +278,7 @@ def self_check(out: Path, app: dict, version: str, keep_checksum: bool) -> None:
         manifest = (stage / "manifest").read_text(encoding="utf-8")
         want = {
             "appname": app["appname"],
-            "platform": "x86",
+            "platform": app.get("platform", "x86"),
             "version": version,
         }
         for key, value in want.items():
@@ -384,7 +384,8 @@ def main() -> int:
     log(f"应用 {app['id']}，上游 {app['upstream_repo']}，版本 {version}（tag {tag}）")
     source_build = app.get("strategy") == "github_source"
     npm_build = app.get("strategy") == "npm_package"
-    if not source_build and not npm_build:
+    substore_build = app.get("strategy") == "substore_release"
+    if not source_build and not npm_build and not substore_build:
         release = fetch_release(app["upstream_repo"], tag, token)
         asset = find_asset(release, app["asset_regex"])
         log(f"选中上游资产：{asset['name']}（{asset['size']} 字节）")
@@ -393,7 +394,10 @@ def main() -> int:
         work = Path(td)
         stage = work / "stage"
         shutil.copytree(template, stage)
-        if npm_build:
+        if substore_build:
+            from build_substore import build
+            build(app, version, tag, stage, work, token)
+        elif npm_build:
             from build_ekko import build
             build(app, version, stage, work)
         elif source_build:

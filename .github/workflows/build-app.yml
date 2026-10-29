@@ -43,6 +43,12 @@ jobs:
           go-version-file: .work/source/go.mod
           cache-dependency-path: .work/source/go.sum
 
+      - name: Setup Sub-Store verification Node
+        if: ${{ fromJSON(inputs.app).id == 'substore' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: 准备环境
         run: |
           set -euo pipefail
@@ -83,6 +89,12 @@ jobs:
           else
             python3 scripts/build_app.py --config .work/app.json
           fi
+
+      - name: Verify Sub-Store packaged runtime and data persistence
+        if: ${{ fromJSON(inputs.app).id == 'substore' }}
+        env:
+          SUBSTORE_TEST_FPK: dist/Sub-Store-${{ fromJSON(inputs.app).version }}-all.fpk
+        run: python3 scripts/test_substore.py
 
       - name: 上传 artifact
         uses: actions/upload-artifact@v4

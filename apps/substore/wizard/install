@@ -1,0 +1,24 @@
+[
+  {
+    "stepTitle": "Sub-Store 设置",
+    "items": [
+      {
+        "type": "tips",
+        "field": "notice",
+        "helpText": "依赖飞牛 Node.js 24。前后端已内置，后端路径 /path。无额外登录层，仅建议可信本地网络使用；反代需添加鉴权。升级保留数据。"
+      },
+      {
+        "type": "text",
+        "field": "port",
+        "label": "服务端口",
+        "initValue": "21678",
+        "rules": [
+          {
+            "required": true,
+            "message": "请输入 1–65535 的端口"
+          }
+        ]
+      }
+    ]
+  }
+]
