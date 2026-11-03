@@ -6,6 +6,10 @@
 
 升级定向迁移 default/当前 profile 的旧 MCP 路径，先留原文件备份，保留环境变量、端口与开关状态。不批量修改其他 profile。配置变更时，仅对已运行应用重新启停以应用新端口。停机宽限延长至 90 秒，但包含真实 Gateway 的停机仍需真机回归。历史处理补丁：仅有 reasoning 的记录继续过滤但不误报警；真正的空消息按会话/消息 ID 去重告警（最多缓存 1024 个键）。保留正文、工具调用及过滤规则；不修改或清理聊天数据库。补丁匹配不到上游代码即阻止发布，Actions 执行真实历史函数回归测试。
 
+历史补丁标识为 `history-reasoning-classification-v2`（写入 `BUILD.json`）。保留 npm 0.7.38/0.7.39 已审查布局，并适配 0.8.14 的 `message-format` / `context-history`：load 同时检查原始记录和解析后的 thinking/reasoning，build 用投影前的行 `o` 的原始 ID 告警，不用已丢失 ID 的模型消息对象；三类 reasoning 字段支持非空字符串、数组和对象。去重键使用 JSON 元组避免会话/ID 中冒号导致碰撞，FIFO 上限 1024。只替换两处告警调用，不改变过滤条件、消息投影、非枚举 `cursorId`、游标上下文或 DB；0.8.14 还固定已审查历史代码区段 SHA256，任何变化均须人工复审。
+
+本地验证（不安装整个 npm 依赖、不启动服务）：下载对应 npm tarball，按 registry `dist.integrity` 验证 SHA512，只读取 `package.json` 和 `dist/server/index.js`；在临时副本执行 `python3 scripts/patch_ekko_history.py <package>`、`node --check <package>/dist/server/index.js` 和 `node scripts/test_ekko_history.cjs <package>/dist/server/index.js`。VM 测试执行 bundle 中实际 load/build 函数，与恢复原告警调用的函数逐字段对比输出及 cursor 描述符，并验证输入不变、reasoning 静默、跨 load/build 原始 ID 去重、不同会话/消息不合并及 1024 FIFO 淘汰。0.8.14 另覆盖数组/序列化/双序列化 thinking、正文与 tool_use 格式、真实工具截断与禁止截断、`excludeLastUser`、运行时 projection 边界及 full/cursor 上下文。上下文测试的 DB 读取和运行时 projection 注入 fixture，不访问真实数据库或真实 Agent；这些测试不代替完整依赖/native/FPK/真机验收。
+
 - 应用标识 `Ekko`，沿用第三方包的数据共享目录 `Ekko`，默认端口 8770（安装/配置向导可改）。覆盖安装可能继续使用既有 Ekko 数据，操作前由用户备份；不会自动导入其他应用数据。
 - 从 npm registry 的 `ekko-studio` latest 获取正式版本并固定版本安装，内置 Node 24.22.0。Actions Debian 12 容器安装编译工具，正常执行 npm lifecycle，不用 `--ignore-scripts` 绕过 node-pty 编译。
 - Node 官方 SHA256 与 npm registry integrity 校验；记录实际依赖清单与来源。FPK 复用现有 tar packer 和完整性自检。

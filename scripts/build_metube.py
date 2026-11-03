@@ -21,7 +21,8 @@ TOOLS = {
     'python': ('astral-sh/python-build-standalone', '20261013', 'cpython-3.14.8+20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz', 'd8faa1b588506b9e3e5a3f57807bb056d534a1641a6b10d15b6ea3f0b413b960'),
     'uv': ('astral-sh/uv', '0.13.1', 'uv-x86_64-unknown-linux-gnu.tar.gz', 'eadd9d27c134ab5ac1ffd4473b97a741407f3ea238288f03121fc4deddf90220'),
     'deno': ('denoland/deno', 'v2.9.7', 'deno-x86_64-unknown-linux-gnu.zip', 'c6527f24f4b16031d3ae4fa9f658d5f11534c8d84ce7dc8502420280919c3490'),
-    'ffmpeg': ('BtbN/FFmpeg-Builds', 'autobuild-2026-10-16-13-04', 'ffmpeg-n8.1.3-18-g46d899d7a0-linux64-gpl-8.1.tar.xz', 'c19bd7fec94e0c56032fad4f20bf56b2847f18fbe372c758b32ed10d4dec2176'),
+    # Month-end release: retained for two years, unlike the last 14 daily builds.
+    'ffmpeg': ('BtbN/FFmpeg-Builds', 'autobuild-2026-10-31-12-59', 'ffmpeg-n8.1.3-27-g8dca1586f4-linux64-gpl-8.1.tar.xz', '41e9c565594c390622cf968d82fa4135d9e9a11d06c1515644288cbc844e3380'),
     'bgutil': ('jim60105/bgutil-ytdlp-pot-provider-rs', 'v0.8.1', 'bgutil-pot-linux-x86_64', 'e7c264a574fa2705b6e5dc62283a8a4e80130f27b9d7e9df44e6b09aa6151a87'),
     'plugin': ('jim60105/bgutil-ytdlp-pot-provider-rs', 'v0.8.1', 'bgutil-ytdlp-pot-provider-rs.zip', '99fd83b98fa93b193d6a3b69dc74410d76e7a2b889868c54d16121cac9060344'),
 }
