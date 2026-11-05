@@ -1,0 +1,66 @@
+{
+  "run_url": "https://github.com/cmbya/fnos-buildbot/actions/runs/42005629449",
+  "commit": "ea127a31f5fb7749a69ed3ba44a29634fdc8d5da",
+  "status": "published",
+  "artifact": "Ekko-0.8.16-x86.fpk",
+  "size": 175409950,
+  "sha256": "ca2e95b656fe242090505f1f0319e41f58431e72b1ed77cee9b6292da58af28e",
+  "assets": [
+    {
+      "apiUrl": "https://api.github.com/repos/cmbya/FnDepot/releases/assets/710913227",
+      "contentType": "application/octet-stream",
+      "createdAt": "2026-11-04T20:58:28Z",
+      "digest": "sha256:3ade2644d1bb92fcee41514b51c8e98b298d88ce9d78081daf3e31ee1e3b2bf3",
+      "downloadCount": 8,
+      "id": "RA_kwDOT3aFlc4qX6zL",
+      "label": "",
+      "name": "CLIProxyAPI_8.0.55_fnOS_x86.fpk",
+      "size": 24898268,
+      "state": "uploaded",
+      "updatedAt": "2026-11-04T20:58:30Z",
+      "url": "https://github.com/cmbya/FnDepot/releases/download/2026.11.05/CLIProxyAPI_8.0.55_fnOS_x86.fpk"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/cmbya/FnDepot/releases/assets/712807276",
+      "contentType": "application/octet-stream",
+      "createdAt": "2026-11-05T09:24:28Z",
+      "digest": "sha256:61df75d84127b8bfa4d7b6a8ab92abda456336ba6e55a0154a4432f0a6bb566f",
+      "downloadCount": 0,
+      "id": "RA_kwDOT3aFlc4qfJNs",
+      "label": "",
+      "name": "CLIProxyAPI_8.0.56_fnOS_x86.fpk",
+      "size": 24934423,
+      "state": "uploaded",
+      "updatedAt": "2026-11-05T09:24:29Z",
+      "url": "https://github.com/cmbya/FnDepot/releases/download/2026.11.05/CLIProxyAPI_8.0.56_fnOS_x86.fpk"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/cmbya/FnDepot/releases/assets/710913230",
+      "contentType": "application/octet-stream",
+      "createdAt": "2026-11-04T20:58:28Z",
+      "digest": "sha256:e37d7f2548dc09f30630b8f61707974ebbc8f0c81a1e42d54401ca4389399fcf",
+      "downloadCount": 21,
+      "id": "RA_kwDOT3aFlc4qX6zO",
+      "label": "",
+      "name": "Ekko-0.8.15-x86.fpk",
+      "size": 175413142,
+      "state": "uploaded",
+      "updatedAt": "2026-11-04T20:58:37Z",
+      "url": "https://github.com/cmbya/FnDepot/releases/download/2026.11.05/Ekko-0.8.15-x86.fpk"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/cmbya/FnDepot/releases/assets/712922299",
+      "contentType": "application/octet-stream",
+      "createdAt": "2026-11-05T10:00:43Z",
+      "digest": "sha256:ca2e95b656fe242090505f1f0319e41f58431e72b1ed77cee9b6292da58af28e",
+      "downloadCount": 0,
+      "id": "RA_kwDOT3aFlc4qflS7",
+      "label": "",
+      "name": "Ekko-0.8.16-x86.fpk",
+      "size": 175409950,
+      "state": "uploaded",
+      "updatedAt": "2026-11-05T10:00:49Z",
+      "url": "https://github.com/cmbya/FnDepot/releases/download/2026.11.05/Ekko-0.8.16-x86.fpk"
+    }
+  ]
+}
