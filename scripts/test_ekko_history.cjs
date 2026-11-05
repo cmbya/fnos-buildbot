@@ -6,32 +6,38 @@ const source = fs.readFileSync(process.argv[2], 'utf8');
 const layouts = [
   {anchor:'function t8e(t){', start:'function Omr(', end:'function $x(', load:'Umr', build:'r8e', truncate:'NZe', limit:'qx', logger:'C'},
   {anchor:'function W8e(t){', start:'function bpr(', end:'function rS(', load:'gpr', build:'y8e', truncate:'CZe', limit:'tS', logger:'C'},
-  {anchor:'function Frt(t,e,r={}){', start:'function C_(', end:'var Z$=', load:'IWr', build:'Frt', logger:'X', modern:true},
+  {anchor:'function Frt(t,e,r={}){', start:'function C_(', end:'var Z$=', load:'IWr', build:'Frt', logger:'X', modern:true,
+    projectionStart:'function A0e(', projectionEnd:'function Jgr(', runtime:'k0e', init:'Wfe', db:'wM', cursor:'KZ', full:'k_', snapshot:'sZ', assemble:'Kv', label:'0.8.14'},
+  {anchor:'function Mrt(t,e,r={}){', start:'function Jts(', end:'var R$=', load:'VWr', build:'Mrt', logger:'X', modern:true,
+    projectionStart:'function P0e(', projectionEnd:'function qgr(', runtime:'D0e', db:'HM', cursor:'qZ', full:'S_', snapshot:'aZ', assemble:'qv', label:'0.8.16'},
 ];
-assert.equal(layouts.reduce((n,l)=>n+source.split(l.anchor).length-1,0),1,'unknown/ambiguous history layout');
-const layout = layouts.find(l=>source.includes(l.anchor));
+// An unrelated 0.8.16 sleep helper reuses W8e. Require full boundaries too.
+const candidates = layouts.filter(l=>source.includes(l.anchor)&&source.includes(l.start)&&source.includes(l.end));
+assert.equal(candidates.length,1,'unknown/ambiguous history layout');
+const layout = candidates[0];
+assert.equal(source.split(layout.anchor).length-1,1,'duplicated history function');
 function region(text) {
   const start=text.indexOf(layout.start), end=text.indexOf(layout.end,start);
   assert(start>=0 && end>start,'history function boundaries changed');
+  // The modern helper is inserted after the parser, so included in this region.
   return text.slice(start,end);
 }
 function setup(text) {
   const warnings=[];
-  const context={ [layout.logger]:{warn:(...a)=>warnings.push(a),info:()=>{}}, fe:f=>f };
+  const context={ [layout.logger]:{warn:(...a)=>warnings.push(a),info:()=>{}}, fe:f=>f, ve:f=>f };
   if (!layout.modern) Object.assign(context,{[layout.truncate]:x=>x,[layout.limit]:0});
   vm.createContext(context);
   vm.runInContext(region(text),context);
   if(layout.modern) {
-    const start=text.indexOf('function A0e('),end=text.indexOf('function Jgr(',start);
+    const start=text.indexOf(layout.projectionStart),end=text.indexOf(layout.projectionEnd,start);
     assert(start>=0 && end>start);
-    vm.runInContext('var k0e;'+text.slice(start,end)+';Wfe()',context);
+    vm.runInContext(`var ${layout.runtime};`+text.slice(start,end)+(layout.init?`;${layout.init}()`:''),context);
   }
   return {context,warnings,load:context[layout.load],build:context[layout.build]};
 }
 const patched=setup(source), {context,warnings,load,build}=patched;
 assert.equal(typeof load,'function'); assert.equal(typeof build,'function');
-// Reconstruct ONLY the two original warning sites. Differential assertions below
-// prove all output fields/descriptors/filtering remain upstream-identical.
+// Reconstruct ONLY the original warning sites for differential comparisons.
 const original=source.replace(/ekkoWarnEmptyHistory\(e,n,(?:i,X|void 0,C)\)/,
   `${layout.logger}.warn("[chat-run-socket] skipped empty assistant message %s while loading session %s",n.id,e)`)
   .replace(/ekkoWarnEmptyHistory\(t,o,void 0,[XC]\)/,
@@ -95,28 +101,26 @@ if(layout.modern) {
   unchanged(long); unchanged(long,'full',{truncateToolResults:false});
   assert(build('truncate',long)[0].content.length<7000);
   assert.equal(build('full',long,{truncateToolResults:false})[0].content.length,7000);
-  // Inject only the external runtime projection boundary; execute real A0e/Frt.
   let projected=0;
-  context.k0e={projectBrowserHistory:(rows,opts)=>{projected++; assert.equal(typeof opts.truncateOtherTools,'function'); return rows.map(r=>({...r,content:r.content+' projected'}));}};
+  context[layout.runtime]={projectBrowserHistory:(rows,opts)=>{projected++; assert.equal(typeof opts.truncateOtherTools,'function'); return rows.map(r=>({...r,content:r.content+' projected'}));}};
   assert.equal(build('projection',[valid[1]])[0].content,'answer projected');
-  assert.equal(projected,1); context.k0e=undefined;
-  // Exercise actual full/cursor context functions using read-only DB fixtures.
+  assert.equal(projected,1); context[layout.runtime]=undefined;
   const db=[{id:1,role:'user',content:'head'}, {id:2,role:'assistant',content:'old'},
     {id:3,role:'assistant',content:'new'}, {id:4,role:'user',content:'tail'}];
   const reads=[];
-  context.wM=(_session,opts={})=>{reads.push(opts); return db.filter(r=>(opts.throughId==null||r.id<=opts.throughId)&&(opts.afterId==null||r.id>opts.afterId)).slice(0,opts.limit??db.length);};
-  context.Oe=()=>({history_revision:7}); context.KZ=(_s,id)=>db.some(r=>r.id===id);
-  assert.equal(context.k_('db').length,4);
+  context[layout.db]=(_session,opts={})=>{reads.push(opts); return db.filter(r=>(opts.throughId==null||r.id<=opts.throughId)&&(opts.afterId==null||r.id>opts.afterId)).slice(0,opts.limit??db.length);};
+  context.Oe=()=>({history_revision:7}); context[layout.cursor]=(_s,id)=>db.some(r=>r.id===id);
+  assert.equal(context[layout.full]('db').length,4);
   const snapshot={compressedThroughMessageId:2,protectedHeadThroughMessageId:1,historyRevision:7,summary:'summary'};
-  const cursor=context.sZ('db',snapshot,{excludeLastUser:true,truncateToolResults:false});
+  const cursor=context[layout.snapshot]('db',snapshot,{excludeLastUser:true,truncateToolResults:false});
   assert.equal(cursor.status,'usable'); assert.equal(cursor.parts.head[0].cursorId,1);
   assert.equal(cursor.parts.newMessages[0].cursorId,3); assert.equal(cursor.parts.newMessages.length,1);
-  assert.equal(context.Kv(snapshot,cursor.parts,'prefix')[1].content,'prefix\n\nsummary');
-  assert.equal(context.sZ('db',{...snapshot,historyRevision:8}).reason,'history_revision_mismatch');
-  assert.equal(context.sZ('db',{...snapshot,compressedThroughMessageId:999}).reason,'cursor_missing');
-  assert.equal(context.sZ('db',null).status,'legacy');
+  assert.equal(context[layout.assemble](snapshot,cursor.parts,'prefix')[1].content,'prefix\n\nsummary');
+  assert.equal(context[layout.snapshot]('db',{...snapshot,historyRevision:8}).reason,'history_revision_mismatch');
+  assert.equal(context[layout.snapshot]('db',{...snapshot,compressedThroughMessageId:999}).reason,'cursor_missing');
+  assert.equal(context[layout.snapshot]('db',null).status,'legacy');
   assert(reads.some(r=>r.afterId===2));
-  console.log('PASS: 0.8.14 content formats, parsed thinking, cursor descriptors, full/cursor context, projection, truncation, excludeLastUser');
+  console.log(`PASS: ${layout.label} formats, parsed thinking, cursor descriptors, full/cursor context, projection, truncation, excludeLastUser`);
 }
 assert.equal(warnings.length,0);
 for(let i=0;i<3;i++) {
@@ -130,7 +134,6 @@ assert.equal(warnings.length,3,'distinct original ids/session collapsed');
 assert.deepEqual(warnings.slice(0,3).map(w=>[w[1],w[2]]),[[70,'empty'],[71,'empty'],[70,'other']], 'warning must use original row id and session');
 unchanged([{id:72,role:'assistant',content:' ',reasoning:' ',reasoning_content:'',reasoning_details:[]}], 'blank');
 assert.equal(warnings.length,4,'blank reasoning is genuinely empty');
-// Session/id separators cannot collide.
 build('a:b',[{id:'c',role:'assistant',content:''}]);
 build('a',[{id:'b:c',role:'assistant',content:''}]);
 assert.equal(warnings.length,6);
@@ -140,4 +143,4 @@ let count=warnings.length;
 load([{id:1024,role:'assistant',content:''}],'eviction'); assert.equal(warnings.length,count);
 load([{id:0,role:'assistant',content:''}],'eviction'); assert.equal(warnings.length,count+1);
 assert(!JSON.stringify(warnings).includes('private'),'reasoning leaked');
-console.log('PASS: real load/build functions; reasoning quiet; answer/tool chain preserved; differential outputs/input unchanged; session+original-id dedup; collision-safe keys; bounded 1024 FIFO eviction');
+console.log('PASS: real load/build functions; differential outputs/input unchanged; session+original-id dedup; bounded FIFO; no reasoning leaks');
