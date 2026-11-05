@@ -8,8 +8,8 @@ const layouts = [
   {anchor:'function W8e(t){', start:'function bpr(', end:'function rS(', load:'gpr', build:'y8e', truncate:'CZe', limit:'tS', logger:'C'},
   {anchor:'function Frt(t,e,r={}){', start:'function C_(', end:'var Z$=', load:'IWr', build:'Frt', logger:'X', modern:true,
     projectionStart:'function A0e(', projectionEnd:'function Jgr(', runtime:'k0e', init:'Wfe', db:'wM', cursor:'KZ', full:'k_', snapshot:'sZ', assemble:'Kv', label:'0.8.14'},
-  {anchor:'function Mrt(t,e,r={}){', start:'function Jts(', end:'var R$=', load:'VWr', build:'Mrt', logger:'X', modern:true,
-    projectionStart:'function P0e(', projectionEnd:'function qgr(', runtime:'D0e', db:'HM', cursor:'qZ', full:'S_', snapshot:'aZ', assemble:'qv', label:'0.8.16'},
+  {anchor:'function Mrt(t,e,r={}){', start:'function x_(', end:'var R$=', load:'VWr', build:'Mrt', logger:'X', modern:true,
+    projectionStart:'function P0e(', projectionEnd:'function qgr(', runtime:'D0e', truncationInit:'Hfe', db:'HM', cursor:'qZ', full:'S_', snapshot:'aZ', assemble:'qv', label:'0.8.16'},
 ];
 // An unrelated 0.8.16 sleep helper reuses W8e. Require full boundaries too.
 const candidates = layouts.filter(l=>source.includes(l.anchor)&&source.includes(l.start)&&source.includes(l.end));
@@ -19,7 +19,6 @@ assert.equal(source.split(layout.anchor).length-1,1,'duplicated history function
 function region(text) {
   const start=text.indexOf(layout.start), end=text.indexOf(layout.end,start);
   assert(start>=0 && end>start,'history function boundaries changed');
-  // The modern helper is inserted after the parser, so included in this region.
   return text.slice(start,end);
 }
 function setup(text) {
@@ -28,6 +27,7 @@ function setup(text) {
   if (!layout.modern) Object.assign(context,{[layout.truncate]:x=>x,[layout.limit]:0});
   vm.createContext(context);
   vm.runInContext(region(text),context);
+  if(layout.truncationInit) vm.runInContext(`${layout.truncationInit}()`,context);
   if(layout.modern) {
     const start=text.indexOf(layout.projectionStart),end=text.indexOf(layout.projectionEnd,start);
     assert(start>=0 && end>start);
