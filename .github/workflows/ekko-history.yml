@@ -21,7 +21,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
-          import base64, hashlib, io, json, os, tarfile, urllib.request
+          import base64, hashlib, io, json, os, re, tarfile, urllib.error, urllib.request
           version = '0.8.16'
           with urllib.request.urlopen('https://registry.npmjs.org/ekko-studio/' + version, timeout=60) as r:
               info = json.load(r)
@@ -31,30 +31,29 @@ jobs:
           assert integrity == info['dist']['integrity'], 'npm integrity mismatch'
           with tarfile.open(fileobj=io.BytesIO(data), mode='r:gz') as archive:
               text = archive.extractfile('package/dist/server/index.js').read().decode()
-          report = {'version': version, 'integrity': integrity, 'bundle_sha256': hashlib.sha256(text.encode()).hexdigest()}
-          excerpts = []
-          for needle in ['function t8e(t){', 'function W8e(t){', 'function Frt(t,e,r={}){', 'skipped empty assistant message %s while loading session %s', 'skipped empty assistant message while building history for session %s']:
-              positions = []
-              offset = 0
-              while (i := text.find(needle, offset)) >= 0:
-                  positions.append(i)
-                  offset = i + len(needle)
-              report[needle] = positions
-              for i in positions:
-                  excerpts.append('\n--- ' + needle + ' ---\n' + text[max(0, i-9000):i+16000])
-          output = json.dumps(report, indent=2) + '\n' + '\n'.join(excerpts)
+          def region(start, end):
+              assert text.count(start) == 1 and text.count(end) == 1, (start, end)
+              a = text.index(start)
+              b = text.index(end, a)
+              return text[a:b]
+          history = region('function wWr(', 'var R$=')
+          parser = region('function Jts(', 'var YWr=')
+          truncation = region('function x_(', 'function Jts(')
+          projection_start = text.index('function P0e(')
+          projection = text[projection_start:text.index('var ', projection_start)]
+          # Include the runtime initializer immediately following the facade.
+          projection += text[text.index('var ', projection_start):text.index('function ', text.index('var ', projection_start))]
+          report = {'version': version, 'integrity': integrity, 'bundle_sha256': hashlib.sha256(text.encode()).hexdigest(), 'history_sha256': hashlib.sha256(history.encode()).hexdigest(), 'history': history, 'parser': parser, 'truncation': truncation, 'projection': projection}
+          for name in ['P0e', 'wWr', 'Mrt', 'W8e']:
+              report[name + '_declarations'] = len(re.findall(r'function ' + re.escape(name) + r'\(', text))
           path = 'docs/ekko-history-0.8.16-inspection.txt'
           url = 'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY'] + '/contents/' + path
           headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
-          body = {'message': 'chore(ekko): record cloud inspection of npm 0.8.16 history bundle', 'content': base64.b64encode(output.encode()).decode(), 'branch': 'main'}
-          try:
-              with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=60) as r:
-                  body['sha'] = json.load(r)['sha']
-          except urllib.error.HTTPError as e:
-              if e.code != 404:
-                  raise
+          with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=60) as r:
+              sha = json.load(r)['sha']
+          body = {'message': 'chore(ekko): record exact cloud-reviewed 0.8.16 history regions', 'content': base64.b64encode((json.dumps(report, ensure_ascii=False, indent=2) + '\n').encode()).decode(), 'branch': 'main', 'sha': sha}
           with urllib.request.urlopen(urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers, method='PUT'), timeout=60) as r:
               result = json.load(r)
           print('Inspection commit:', result['commit']['sha'])
-          print(json.dumps(report, indent=2))
+          print('History SHA256:', report['history_sha256'])
           PY
