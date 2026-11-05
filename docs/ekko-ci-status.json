@@ -1,0 +1,127 @@
+{
+  "run_url": "https://github.com/cmbya/fnos-buildbot/actions/runs/42005629449",
+  "head_sha": "ea127a31f5fb7749a69ed3ba44a29634fdc8d5da",
+  "status": "in_progress",
+  "conclusion": null,
+  "jobs": [
+    {
+      "name": "regression",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Patch guards and actual npm history function regressions",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Pin repaired version",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "build / build",
+      "status": "in_progress",
+      "conclusion": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout fixed upstream source commit",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Setup source Node",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Setup source Go from fixed tag go.mod",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Setup Sub-Store verification Node",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "准备环境",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "安装 fnpack（仅 fnpack 打包方式需要）",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "写入单应用配置",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "构建 FPK",
+          "status": "in_progress",
+          "conclusion": null
+        },
+        {
+          "name": "Verify Sub-Store packaged runtime and data persistence",
+          "status": "pending",
+          "conclusion": null
+        },
+        {
+          "name": "上传 artifact",
+          "status": "pending",
+          "conclusion": null
+        },
+        {
+          "name": "Post Checkout",
+          "status": "pending",
+          "conclusion": null
+        }
+      ]
+    }
+  ]
+}
