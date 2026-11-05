@@ -1,0 +1,47 @@
+name: Observe Ekko repair run
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/ekko-ci-status.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record bounded status until the repair run completes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, time, urllib.request, urllib.error
+          base = 'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY']
+          headers = {'Authorization':'Bearer '+os.environ['GH_TOKEN'], 'Accept':'application/vnd.github+json'}
+          def get(path):
+              with urllib.request.urlopen(urllib.request.Request(base+path,headers=headers),timeout=60) as r:
+                  return json.load(r)
+          path='/contents/docs/ekko-ci-status.json'
+          run=get('/actions/workflows/ekko-history.yml/runs?per_page=1')['workflow_runs'][0]
+          previous=None
+          for _ in range(75):
+              run=get('/actions/runs/'+str(run['id']))
+              jobs=get('/actions/runs/'+str(run['id'])+'/jobs?per_page=100')['jobs']
+              report={'run_url':run['html_url'],'head_sha':run['head_sha'],'status':run['status'],'conclusion':run['conclusion'],'jobs':[{'name':j['name'],'status':j['status'],'conclusion':j['conclusion'],'steps':[{'name':s['name'],'status':s['status'],'conclusion':s['conclusion']} for s in j.get('steps',[])]} for j in jobs]}
+              content=json.dumps(report,ensure_ascii=False,indent=2)+'\n'
+              if content!=previous:
+                  body={'message':'chore(ekko): record current cloud repair status','branch':'main','content':base64.b64encode(content.encode()).decode()}
+                  try:
+                      body['sha']=get(path)['sha']
+                  except urllib.error.HTTPError as e:
+                      if e.code!=404: raise
+                  req=urllib.request.Request(base+path,data=json.dumps(body).encode(),headers=headers,method='PUT')
+                  with urllib.request.urlopen(req,timeout=60) as r: json.load(r)
+                  previous=content
+              print(run['html_url'],run['status'],run['conclusion'],flush=True)
+              if run['status']=='completed': break
+              time.sleep(15)
+          PY
