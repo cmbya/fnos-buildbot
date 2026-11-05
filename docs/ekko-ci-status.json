@@ -53,8 +53,8 @@
     },
     {
       "name": "build / build",
-      "status": "in_progress",
-      "conclusion": null,
+      "status": "completed",
+      "conclusion": "success",
       "steps": [
         {
           "name": "Set up job",
@@ -103,21 +103,63 @@
         },
         {
           "name": "构建 FPK",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify Sub-Store packaged runtime and data persistence",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "上传 artifact",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "publish",
+      "status": "in_progress",
+      "conclusion": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
           "status": "in_progress",
           "conclusion": null
         },
         {
-          "name": "Verify Sub-Store packaged runtime and data persistence",
+          "name": "Run actions/download-artifact@v4",
           "status": "pending",
           "conclusion": null
         },
         {
-          "name": "上传 artifact",
+          "name": "Publish only the verified Ekko package and refresh FnDepot",
           "status": "pending",
           "conclusion": null
         },
         {
-          "name": "Post Checkout",
+          "name": "Save verified cloud delivery evidence",
+          "status": "pending",
+          "conclusion": null
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
           "status": "pending",
           "conclusion": null
         }
