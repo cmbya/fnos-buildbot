@@ -1,8 +1,8 @@
 {
   "run_url": "https://github.com/cmbya/fnos-buildbot/actions/runs/42005629449",
   "head_sha": "ea127a31f5fb7749a69ed3ba44a29634fdc8d5da",
-  "status": "in_progress",
-  "conclusion": null,
+  "status": "completed",
+  "conclusion": "success",
   "jobs": [
     {
       "name": "regression",
@@ -130,8 +130,8 @@
     },
     {
       "name": "publish",
-      "status": "in_progress",
-      "conclusion": null,
+      "status": "completed",
+      "conclusion": "success",
       "steps": [
         {
           "name": "Set up job",
@@ -140,30 +140,41 @@
         },
         {
           "name": "Run actions/checkout@v4",
-          "status": "in_progress",
-          "conclusion": null
+          "status": "completed",
+          "conclusion": "success"
         },
         {
           "name": "Run actions/download-artifact@v4",
-          "status": "pending",
-          "conclusion": null
+          "status": "completed",
+          "conclusion": "success"
         },
         {
           "name": "Publish only the verified Ekko package and refresh FnDepot",
-          "status": "pending",
-          "conclusion": null
+          "status": "completed",
+          "conclusion": "success"
         },
         {
           "name": "Save verified cloud delivery evidence",
-          "status": "pending",
-          "conclusion": null
+          "status": "completed",
+          "conclusion": "success"
         },
         {
           "name": "Post Run actions/checkout@v4",
-          "status": "pending",
-          "conclusion": null
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
         }
       ]
+    },
+    {
+      "name": "report-failure",
+      "status": "completed",
+      "conclusion": "skipped",
+      "steps": []
     }
   ]
 }
