@@ -1,11 +1,8 @@
 name: Verify fnpack fix and recover CLIProxyAPI release
 
-# Targeted recovery entry; existing daily scheduling/release logic is unchanged.
-# A push changing THIS file runs the authorized recovery and publishes CLIProxyAPI.
+# The authorized one-time recovery is complete. Future recoveries are explicit.
+# Existing daily scheduling/release logic is unchanged.
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/cliproxyapi-recovery.yml']
   workflow_dispatch:
     inputs:
       publish:
@@ -33,12 +30,11 @@ jobs:
       - name: 仅触发 CLIProxyAPI 的现有构建发布流程
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
           MANUAL_PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
           publish=false
-          if [[ "$EVENT_NAME" == push || "$MANUAL_PUBLISH" == true ]]; then
+          if [[ "$MANUAL_PUBLISH" == true ]]; then
             publish=true
           fi
           gh workflow run auto-build.yml --repo "$GITHUB_REPOSITORY" --ref main \
