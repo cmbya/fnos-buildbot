@@ -1,0 +1,173 @@
+{
+  "run_url": "https://github.com/cmbya/fnos-buildbot/actions/runs/42328084668",
+  "commit": "661a4b1fad78d86302e143c2bc863a8b9306c35a",
+  "status": "verified",
+  "regression": "success",
+  "build": "success",
+  "published": false,
+  "app": {
+    "id": "ekko",
+    "name": "Ekko Studio",
+    "appname": "Ekko",
+    "strategy": "npm_package",
+    "npm_package": "ekko-studio",
+    "node_version": "24.22.0",
+    "upstream_repo": "EKKOLearnAI/ekko-studio",
+    "template": "apps/ekko",
+    "packer": "tar",
+    "fpk_name": "Ekko-{version}-x86.fpk",
+    "desc": "Ekko Studio {version} fnOS x86 原生版，内置 Node 24；Agent 按需安装。仅非商业用途，商业使用须另获上游许可。",
+    "changelog": "Ekko Studio {version}：官方 npm 包与 Node 24 内置，升级保留 Ekko 共享目录。尚未完成 fnOS 真机安装回归。",
+    "version": "0.8.17",
+    "tag": "0.8.17"
+  },
+  "jobs": [
+    {
+      "name": "regression",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "固定本次待构建的 npm 版本",
+          "conclusion": "success"
+        },
+        {
+          "name": "已审查旧版的严格补丁与真实历史函数回归",
+          "conclusion": "success"
+        },
+        {
+          "name": "策略边界与本次待打包版本验证",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "name": "build / build",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout fixed upstream source commit",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Setup source Node",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Setup source Go from fixed tag go.mod",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Setup Sub-Store verification Node",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "准备环境",
+          "conclusion": "success"
+        },
+        {
+          "name": "安装 fnpack（仅 fnpack 打包方式需要）",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "写入单应用配置",
+          "conclusion": "success"
+        },
+        {
+          "name": "构建 FPK",
+          "conclusion": "success"
+        },
+        {
+          "name": "保存 Ekko 补丁兼容状态",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify Sub-Store packaged runtime and data persistence",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "上传 artifact",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "ekko-history.json": {
+    "id": "history-reasoning-classification-v3",
+    "status": "skipped_unsupported",
+    "reason": "No exact reviewed history layout; official bundle preserved byte-for-byte",
+    "regression": "not_applicable_unmodified_upstream",
+    "original_bundle_sha256": "a4305ac956859d3fcc8e4fe3d727b1a83aaf525bfe9454c3d90ee07bc62dc0b9",
+    "packaged_bundle_sha256": "a4305ac956859d3fcc8e4fe3d727b1a83aaf525bfe9454c3d90ee07bc62dc0b9",
+    "syntax_check": "passed"
+  },
+  "ekko-build-metadata.json": {
+    "package": "ekko-studio",
+    "version": "0.8.17",
+    "node_version": "24.22.0",
+    "node_sha256": "cc2f601cee82d9a5a233302fe307abc600727035fd7d2c3a3571755989e95008",
+    "patches": [],
+    "history_patch": {
+      "id": "history-reasoning-classification-v3",
+      "status": "skipped_unsupported",
+      "reason": "No exact reviewed history layout; official bundle preserved byte-for-byte",
+      "regression": "not_applicable_unmodified_upstream",
+      "original_bundle_sha256": "a4305ac956859d3fcc8e4fe3d727b1a83aaf525bfe9454c3d90ee07bc62dc0b9",
+      "packaged_bundle_sha256": "a4305ac956859d3fcc8e4fe3d727b1a83aaf525bfe9454c3d90ee07bc62dc0b9",
+      "syntax_check": "passed"
+    }
+  },
+  "artifacts": [
+    {
+      "name": "ekko-compatibility-evidence",
+      "size_in_bytes": 908,
+      "expired": false,
+      "digest": "sha256:9c8cf8c2899730818ac55ee2126d8aa01cc5451cd6d011b28ec2add2fc6bfedb"
+    },
+    {
+      "name": "fpk-ekko",
+      "size_in_bytes": 175497195,
+      "expired": false,
+      "digest": "sha256:09e3f9c3c08893c6e83adbe7afd55f0614aace5b525e5c09200112d0f1498c33"
+    }
+  ]
+}
