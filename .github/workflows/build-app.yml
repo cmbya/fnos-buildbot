@@ -63,7 +63,9 @@ jobs:
           curl -fsSL -o /usr/local/bin/fnpack \
             https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
           chmod +x /usr/local/bin/fnpack
-          fnpack --help | head -3
+          # Read all output before truncating the display; preserve fnpack failures.
+          fnpack --help > "$RUNNER_TEMP/fnpack-help.txt"
+          head -n 3 "$RUNNER_TEMP/fnpack-help.txt"
 
       - name: 写入单应用配置
         env:
