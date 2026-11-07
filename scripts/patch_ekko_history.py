@@ -1,4 +1,4 @@
-"""Fail-closed patch for reviewed npm history adapters. No database access."""
+"""Strict patch for reviewed npm history adapters. No database access."""
 import hashlib
 from pathlib import Path
 
@@ -10,11 +10,16 @@ LOAD_WARNING = '.warn("[chat-run-socket] skipped empty assistant message %s whil
 BUILD_WARNING = '.warn("[chat-run-socket] skipped empty assistant message while building history for session %s",t)'
 
 
+class UnsupportedHistoryLayout(RuntimeError):
+    """Preflight found no reviewed layout; the target has NOT been written."""
+
+
 def apply(package):
     target = Path(package) / 'dist/server/index.js'
     text = target.read_text()
-    if 'function ekkoWarnEmptyHistory(' in text:
-        raise RuntimeError('History patch already applied; refusing double patch')
+    # Partial patches are errors too, not an unsupported official bundle.
+    if 'ekkoWarnEmptyHistory' in text or 'ekkoEmptyHistoryWarnings' in text:
+        raise RuntimeError('History patch already or partially applied; refusing to continue')
     # Minified names are NOT identities: 0.8.16 reuses W8e for a sleep helper.
     # A layout must match its boundaries, logger and both exact edit sites.
     layouts = [
@@ -28,27 +33,27 @@ def apply(package):
                   and text.count(layout[5] + LOAD_WARNING) == 1
                   and text.count(layout[5] + BUILD_WARNING) == 1]
     if len(candidates) != 1:
-        raise RuntimeError('Upstream history code changed; expected one reviewed history layout')
+        raise UnsupportedHistoryLayout('Upstream history code changed; expected one reviewed history layout')
     version, anchor, insertion, end_marker, expected, logger = candidates[0]
     if text.count(anchor) != 1 or text.count(insertion) != 1:
-        raise RuntimeError('Upstream history code changed; duplicated history boundary')
+        raise UnsupportedHistoryLayout('Upstream history code changed; duplicated history boundary')
     modern = expected is not None
     if modern:
         start = text.index(insertion)
         end = text.find(end_marker, start)
         if text.count(end_marker) != 1 or end < start or hashlib.sha256(text[start:end].encode()).hexdigest() != expected:
-            raise RuntimeError(f'Upstream {version} history region changed; review before publishing')
+            raise UnsupportedHistoryLayout(f'Upstream {version} history region changed; review before patching')
     load_call = f'ekkoWarnEmptyHistory(e,n,{"i" if modern else "void 0"},{logger})'
     edits = [
         (insertion, HELPER + insertion),
         (logger + LOAD_WARNING, load_call),
         (logger + BUILD_WARNING, f'ekkoWarnEmptyHistory(t,o,void 0,{logger})'),
     ]
-    # Validate every site before writing anything. Never fall back to a fuzzy edit.
+    # Validate EVERY site before writing. Never fall back to a fuzzy edit.
     for old, _ in edits:
         count = text.count(old)
         if count != 1:
-            raise RuntimeError(f'Upstream history code changed; edit site count={count}: {old}')
+            raise UnsupportedHistoryLayout(f'Upstream history code changed; edit site count={count}: {old}')
     for old, new in edits:
         text = text.replace(old, new, 1)
     target.write_text(text)

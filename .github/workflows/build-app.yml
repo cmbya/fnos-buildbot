@@ -90,6 +90,18 @@ jobs:
             python3 scripts/build_app.py --config .work/app.json
           fi
 
+      - name: 保存 Ekko 补丁兼容状态
+        if: ${{ always() && fromJSON(inputs.app).id == 'ekko' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ekko-compatibility-evidence
+          path: |
+            .work/ekko-history.json
+            .work/ekko-build-metadata.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Verify Sub-Store packaged runtime and data persistence
         if: ${{ fromJSON(inputs.app).id == 'substore' }}
         env:

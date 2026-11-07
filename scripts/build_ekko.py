@@ -12,6 +12,7 @@ import urllib.request
 
 
 def build(app, version, stage, work):
+    print('EKKO BUILD STAGE: authenticated Node runtime', flush=True)
     node_version = app['node_version']
     filename = f'node-v{node_version}-linux-x64.tar.xz'
     base = f'https://nodejs.org/dist/v{node_version}/'
@@ -32,29 +33,35 @@ def build(app, version, stage, work):
     node = stage / 'app/node/bin/node'
     env = dict(os.environ, PATH=f'{node.parent}:{os.environ["PATH"]}')
     server = stage / 'app/server'
+    print(f'EKKO BUILD STAGE: install official {app["npm_package"]}@{version}', flush=True)
     subprocess.run(['npm', 'install', '-g', f'{app["npm_package"]}@{version}', '--prefix', str(server), '--no-audit', '--no-fund', '--allow-scripts=agent-browser,node-pty,protobufjs,vue-demi'], env=env, check=True)
     package = server / 'lib/node_modules' / app['npm_package']
     info = json.loads((package / 'package.json').read_text())
     if info['version'] != version or info['name'] != app['npm_package']:
         raise RuntimeError('Installed npm package identity mismatch')
-    from patch_ekko_history import PATCH_ID, apply as patch_history
-    patch_history(package)
-    subprocess.run([str(node), '--check', str(package / 'dist/server/index.js')], env=env, check=True)
-    subprocess.run([str(node), str(Path(__file__).with_name('test_ekko_history.cjs')), str(package / 'dist/server/index.js')], env=env, check=True)
+    print('EKKO BUILD STAGE: optional history patch and required verification', flush=True)
+    from ekko_history_policy import patch_metadata, prepare_history
+    history = prepare_history(package, node, env)
+    evidence = Path('.work')
+    evidence.mkdir(exist_ok=True)
+    (evidence / 'ekko-history.json').write_text(json.dumps(history, indent=2) + '\n')
+    print('History patch state:', json.dumps(history, sort_keys=True), flush=True)
     shutil.copy2(package / 'LICENSE', stage / 'LICENSE')
+    print('EKKO BUILD STAGE: native PTY and sharp', flush=True)
     # Exercise the native PTY rather than claiming that an import is sufficient.
     test = '''const pty=require('node-pty');require('sharp');
 const p=pty.spawn('/bin/sh',['-c','printf EKKO_PTY_OK'],{cols:80,rows:24,env:process.env});
 let out='';const timer=setTimeout(()=>{p.kill();process.exit(1)},10000);
 p.onData(s=>out+=s);p.onExit(e=>{clearTimeout(timer);if(e.exitCode!==0||!out.includes('EKKO_PTY_OK'))process.exit(1);console.log('Native PTY and sharp PASS')});'''
     subprocess.run([str(node), '-e', test], cwd=package, env=env, check=True, timeout=20)
-    metadata = {'package': info['name'], 'version': version, 'node_version': node_version, 'node_sha256': actual, 'patches': [PATCH_ID]}
+    metadata = {'package': info['name'], 'version': version, 'node_version': node_version, 'node_sha256': actual, **patch_metadata(history)}
     inventory = subprocess.check_output(['npm', 'ls', '-g', '--all', '--json', '--prefix', str(server)], env=env, text=True)
     (stage / 'app/native').mkdir(parents=True, exist_ok=True)
     (stage / 'app/native/dependencies.json').write_text(inventory)
     (stage / 'app/native/BUILD.json').write_text(json.dumps(metadata, indent=2) + '\n')
     for script in (stage / 'cmd').iterdir():
         script.chmod(0o755)
+    print('EKKO BUILD STAGE: layout and uncompressed lifecycle', flush=True)
     subprocess.run(['python3', str(Path(__file__).with_name('test_ekko_layout.py')), str(stage / 'app/node'), str(package)], env=env, check=True, timeout=180)
     smoke(stage, work, env)
     # Match the original FPK's XZ payload layout; retain official Node archive.
@@ -63,12 +70,15 @@ p.onData(s=>out+=s);p.onExit(e=>{clearTimeout(timer);if(e.exitCode!==0||!out.inc
     (stage / 'app/native/node-version').write_text(f'v{node_version}\n')
     shutil.rmtree(server)
     shutil.rmtree(stage / 'app/node')
+    print('EKKO BUILD STAGE: compressed installation lifecycle', flush=True)
     # Re-run full lifecycle tests against compressed installation inputs.
     packed_work = work / 'packed-smoke'
     packed_work.mkdir()
     smoke(stage, packed_work, env)
     # Installation expands server in target; ship only compressed input.
     shutil.rmtree(server)
+    (evidence / 'ekko-build-metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
+    print('EKKO BUILD STAGE: runtime checks passed; FPK packing/self-check follows', flush=True)
 
 
 def smoke(stage, work, base_env):

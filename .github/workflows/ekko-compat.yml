@@ -1,0 +1,95 @@
+name: Verify Ekko upstream compatibility (no publish)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ekko-compat.yml'
+      - '.github/workflows/build-app.yml'
+      - 'scripts/build_ekko.py'
+      - 'scripts/patch_ekko_history.py'
+      - 'scripts/ekko_history_policy.py'
+      - 'scripts/test_ekko_history_policy.py'
+      - 'scripts/test_ekko_patch.py'
+      - 'scripts/test_ekko_history.cjs'
+      - 'scripts/record_ekko_compat_ci.py'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 固定 npm 正式版本（留空时检测 latest 并固定；只验证，不发布）
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ekko-compatibility
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      app: ${{ steps.config.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.0'
+      - name: 固定本次待构建的 npm 版本
+        id: config
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          from pathlib import Path
+          app = next(a for a in json.loads(Path('apps.json').read_text())['apps'] if a['id'] == 'ekko')
+          version = os.environ.get('REQUESTED_VERSION', '').strip()
+          if not version:
+              with urllib.request.urlopen('https://registry.npmjs.org/' + app['npm_package'] + '/latest', timeout=60) as response:
+                  version = json.load(response)['version']
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version):
+              raise RuntimeError('Expected an official npm release version')
+          app.update(version=version, tag=version)
+          Path('.work').mkdir(exist_ok=True)
+          Path('.work/ekko-selected.json').write_text(json.dumps(app))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('app=' + json.dumps(app, separators=(',', ':')) + '\n')
+          print('Pinned npm version:', version)
+          PY
+      - name: 已审查旧版的严格补丁与真实历史函数回归
+        run: python3 scripts/test_ekko_patch.py
+      - name: 策略边界与本次待打包版本验证
+        run: |
+          version="$(python3 -c "import json; print(json.load(open('.work/ekko-selected.json'))['version'])")"
+          python3 scripts/test_ekko_history_policy.py --version "$version"
+  build:
+    needs: regression
+    uses: ./.github/workflows/build-app.yml
+    with:
+      app: ${{ needs.regression.outputs.app }}
+  report:
+    if: ${{ always() }}
+    needs: [regression, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: 下载构建元数据（不发布）
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ekko-compatibility-evidence
+          path: evidence
+      - name: 保存本次云端验证结果
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REGRESSION_RESULT: ${{ needs.regression.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          APP_JSON: ${{ needs.regression.outputs.app }}
+        run: python3 scripts/record_ekko_compat_ci.py
