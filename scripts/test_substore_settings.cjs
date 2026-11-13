@@ -19,7 +19,7 @@ test('strict settings input, no wildcard or shell/path injection', () => {
   assert.deepEqual(validateOrigins(['https://sub.example.com', 'https://sub.example.com']), ['https://sub.example.com']);
 });
 
-test('persistent changes, legacy compatibility, exact origins and private key', () => {
+test('persistent changes, failed writes preserve old state, exact origins and private key', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'substore-settings-test-'));
   try {
     const s = loadState(dir, 'http://127.0.0.1:21678');
@@ -34,12 +34,19 @@ test('persistent changes, legacy compatibility, exact origins and private key', 
     assert.equal(s.allowed('https://sub.example.com.evil.test'), false);
     assert.throws(() => s.update({ apiPrefix: '/bad', allowedOrigins: [] }));
     assert.equal(s.config.apiPrefix, P1);
+    const filename = path.join(dir, 'fnos-server-settings.json');
+    const backup = filename + '.test-backup';
+    fs.renameSync(filename, backup);
+    fs.mkdirSync(filename); // Deterministic rename failure, even when tests run as root.
+    assert.throws(() => s.update({ apiPrefix: P2, allowedOrigins: [] }));
+    assert.equal(s.config.apiPrefix, P1);
+    fs.rmdirSync(filename); fs.renameSync(backup, filename);
     s.update({ apiPrefix: P2, allowedOrigins: [] });
     const restored = loadState(dir, 'http://127.0.0.1:21678');
     assert.equal(restored.config.apiPrefix, P2);
     assert.equal(restored.allowed('https://sub.example.com'), false);
     assert.equal(restored.authenticate('Bearer ' + key), true);
-    fs.writeFileSync(path.join(dir, 'fnos-server-settings.json'), '{broken');
+    fs.writeFileSync(filename, '{broken');
     assert.throws(() => loadState(dir, '')); // Never silently reopen /path.
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
@@ -85,7 +92,9 @@ test('HTTP: authorization, CORS, repeat rotation, old paths, health and no path 
     assert.equal((await request('/_fnos/health', 'GET', { Authorization: 'Bearer ' + key })).status, 200);
     assert.equal((await request('/_fnos/config', 'PUT', auth, { apiPrefix: P2, allowedOrigins: [] })).status, 200);
     assert.equal((await request(P1 + '/api/utils/env')).status, 404);
+    assert.equal((await request(P1)).status, 404);
     assert.equal((await request(P2 + '/api/utils/env')).status, 200);
+    assert.equal((await request('/path/../api/utils/env')).status, 400);
     const publicPage = await request('/_fnos/settings');
     assert.equal(publicPage.status, 200);
     assert.equal(publicPage.body.includes(P2), false);

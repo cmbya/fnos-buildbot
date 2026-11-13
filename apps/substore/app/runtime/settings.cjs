@@ -97,7 +97,8 @@ function createGateway(upstream, state, assets = __dirname) {
   return (req, res) => {
     const raw = req.url || '/';
     const pathname = raw.split('?')[0];
-    if (!pathname.startsWith('/') || pathname.includes('\\') || pathname.startsWith('//')) {
+    if (!pathname.startsWith('/') || pathname.includes('\\') || pathname.startsWith('//') ||
+        pathname.split('/').some(part => part === '.' || part === '..')) {
       send(res, 400, { error: 'Invalid request target' }); return;
     }
     if (pathname === CONTROL + '/client.js' && req.method === 'GET') {
@@ -114,7 +115,6 @@ function createGateway(upstream, state, assets = __dirname) {
       if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress) || !state.authenticate(req.headers.authorization)) {
         send(res, 403, { error: 'Forbidden' }); return;
       }
-      // Probe the upstream API too; do not report healthy solely because adapter loaded.
       req.url = INTERNAL + '/api/utils/env';
       delete req.headers.origin;
       upstream(req, res); return;
@@ -152,34 +152,38 @@ function createGateway(upstream, state, assets = __dirname) {
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS,PATCH,PUT,DELETE');
       res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-      // Only remove Origin after our precise policy passed. Upstream captures its
-      // CORS policy at startup; this adapter owns the persistent dynamic policy.
+      // Remove Origin only AFTER our exact persistent policy passed. Upstream
+      // captures its own static CORS policy at startup; the adapter owns updates.
       delete req.headers.origin;
     }
-    if (origin && req.method === 'OPTIONS') { send(res, 204, '','text/plain'); return; }
+    if (origin && req.method === 'OPTIONS') { send(res, 204, '', 'text/plain'); return; }
     const prefix = state.config.apiPrefix;
     if (pathname.includes('%')) {
-      // Do not allow encoded prefix aliases to bypass rotation and route checks.
       let decoded;
       try { decoded = decodeURIComponent(pathname); } catch { send(res, 400, { error: 'Invalid encoding' }); return; }
-      if (matches(decoded, INTERNAL) || matches(decoded, prefix) || matches(decoded, CONTROL)) { send(res, 404, { error: 'Not found' }); return; }
+      if (matches(decoded, INTERNAL) || matches(decoded, prefix) || matches(decoded, CONTROL) ||
+          decoded.includes('..') || /^\/[A-Za-z0-9_-]{16,128}(\/|$)/.test(decoded)) {
+        send(res, 404, { error: 'Not found' }); return;
+      }
     }
     if (matches(pathname, prefix)) {
       req.url = INTERNAL + raw.slice(prefix.length);
       upstream(req, res); return;
     }
+    // Retired random prefixes must not fall through to SPA index.html with 200.
+    // Reserve the namespace of configurable prefixes, including after restart.
     if (matches(pathname, INTERNAL) || matches(pathname, SENTINEL) ||
-        /^\/(api|download)(\/|$)/.test(pathname)) { send(res, 404, { error: 'Not found' }); return; }
-    // Public frontend and upstream token-based /share routes keep their own semantics.
-    upstream(req, res);
+        /^\/(api|download)(\/|$)/.test(pathname) ||
+        /^\/[A-Za-z0-9_-]{16,128}(\/|$)/.test(pathname)) {
+      send(res, 404, { error: 'Not found' }); return;
+    }
+    upstream(req, res); // Public frontend; /share keeps upstream token semantics.
   };
 }
 function install() {
   const directory = process.env.SUB_STORE_DATA_BASE_PATH;
   if (!directory) throw new Error('SUB_STORE_DATA_BASE_PATH required');
   const state = loadState(directory, process.env.SUB_STORE_CORS_ALLOWED_ORIGINS);
-  // Keep the upstream release's startup router and script processor prefix in sync
-  // with its internal route. Only external URLs are translated by the gateway.
   process.env.SUB_STORE_FRONTEND_BACKEND_PATH = INTERNAL;
   const originalEmit = http.Server.prototype.emit;
   const gateways = new WeakMap();
