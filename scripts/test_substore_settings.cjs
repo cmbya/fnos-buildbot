@@ -9,17 +9,20 @@ const path = require('node:path');
 const http = require('node:http');
 const { once } = require('node:events');
 const { loadState, createGateway, validatePrefix, validateOrigins } = require('../apps/substore/app/runtime/settings.cjs');
-const P1 = '/abcdefghijklmnop01';
-const P2 = '/abcdefghijklmnop02';
+const P1 = '/aB12';
+const P2 = '/cD34';
 
-test('strict settings input, no wildcard or shell/path injection', () => {
-  for (const bad of ['/path', '/', '/short', '/../../etc/passwd', '/abc;echo hello', '/abcdefghijklmnop?', '/_fnosabcdefghijklm']) assert.throws(() => validatePrefix(bad));
+test('four-character boundary, reserved routes and injection guards', () => {
+  for (const bad of ['/path', '/', '/abc', '/subs', '/settings', '/share', '/assets', '/../../etc/passwd', '/abc;echo hello', '/abcdefghijklmnop?', '/_fnosabcdefghijklm', '/' + 'x'.repeat(129)]) assert.throws(() => validatePrefix(bad));
   assert.equal(validatePrefix(P1), P1);
+  assert.equal(validatePrefix('/short'), '/short');
+  assert.equal(validatePrefix('/Ab_9-'), '/Ab_9-');
+  assert.equal(validatePrefix('/' + 'x'.repeat(128)).length, 129);
   for (const bad of ['*', 'example.com', 'https://example.com/', 'https://a:b@example.com', 'https://example.com/path', 'https://example.com?secret=1']) assert.throws(() => validateOrigins([bad]));
   assert.deepEqual(validateOrigins(['https://sub.example.com', 'https://sub.example.com']), ['https://sub.example.com']);
 });
 
-test('persistent changes, failed writes preserve old state, exact origins and private key', () => {
+test('persistent changes, failed writes preserve state, exact origins and private key', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'substore-settings-test-'));
   try {
     const s = loadState(dir, 'http://127.0.0.1:21678');
@@ -36,22 +39,38 @@ test('persistent changes, failed writes preserve old state, exact origins and pr
     assert.equal(s.config.apiPrefix, P1);
     const filename = path.join(dir, 'fnos-server-settings.json');
     const backup = filename + '.test-backup';
-    fs.renameSync(filename, backup);
-    fs.mkdirSync(filename); // Deterministic rename failure, even when tests run as root.
+    fs.renameSync(filename, backup); fs.mkdirSync(filename);
     assert.throws(() => s.update({ apiPrefix: P2, allowedOrigins: [] }));
     assert.equal(s.config.apiPrefix, P1);
+    assert.equal(s.retired(P1), false);
     fs.rmdirSync(filename); fs.renameSync(backup, filename);
     s.update({ apiPrefix: P2, allowedOrigins: [] });
     const restored = loadState(dir, 'http://127.0.0.1:21678');
     assert.equal(restored.config.apiPrefix, P2);
+    assert.equal(restored.retired(P1 + '/api/utils/env'), true);
+    assert.equal(restored.retired(P2), false);
+    assert.throws(() => restored.update({ apiPrefix: P1, allowedOrigins: [] }));
     assert.equal(restored.allowed('https://sub.example.com'), false);
     assert.equal(restored.authenticate('Bearer ' + key), true);
     fs.writeFileSync(filename, '{broken');
-    assert.throws(() => loadState(dir, '')); // Never silently reopen /path.
+    assert.throws(() => loadState(dir, ''));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('HTTP: authorization, CORS, repeat rotation, old paths, health and no path disclosure', async () => {
+test('existing long-prefix settings without retiredPrefixes migrate unchanged', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'substore-migration-test-'));
+  try {
+    const filename = path.join(dir, 'fnos-server-settings.json');
+    const prefix = '/abcdefghijklmnop01';
+    fs.writeFileSync(filename, JSON.stringify({ version: 1, apiPrefix: prefix, allowedOrigins: [] }));
+    const state = loadState(dir, '');
+    assert.equal(state.config.apiPrefix, prefix);
+    state.update({ apiPrefix: P1, allowedOrigins: [] });
+    assert.equal(loadState(dir, '').retired(prefix), true);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('HTTP: CORS, short-path rotation, frontend routes, health and no disclosure', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'substore-gateway-test-'));
   const s = loadState(dir, 'http://127.0.0.1:21678');
   const calls = [];
@@ -78,6 +97,7 @@ test('HTTP: authorization, CORS, repeat rotation, old paths, health and no path 
     assert.equal((await request('/path/api/utils/env', 'GET', { Origin: 'https://sub.example.com' })).status, 403);
     assert.equal((await request('/_fnos/config')).status, 403);
     assert.equal((await request('/_fnos/config', 'PUT', { ...auth, Origin: 'https://evil.example' }, { apiPrefix: P1, allowedOrigins: [] })).status, 403);
+    assert.equal((await request('/_fnos/config', 'PUT', auth, { apiPrefix: '/abc', allowedOrigins: [] })).status, 400);
     const saved = await request('/_fnos/config', 'PUT', auth, { apiPrefix: P1, allowedOrigins: ['https://sub.example.com'] });
     assert.equal(saved.status, 200);
     assert.equal(saved.headers['cache-control'], 'no-store');
@@ -93,7 +113,10 @@ test('HTTP: authorization, CORS, repeat rotation, old paths, health and no path 
     assert.equal((await request('/_fnos/config', 'PUT', auth, { apiPrefix: P2, allowedOrigins: [] })).status, 200);
     assert.equal((await request(P1 + '/api/utils/env')).status, 404);
     assert.equal((await request(P1)).status, 404);
+    assert.equal((await request('/%61B12/api/utils/env')).status, 404);
     assert.equal((await request(P2 + '/api/utils/env')).status, 200);
+    assert.equal((await request('/subs')).status, 200);
+    assert.equal((await request('/settings')).status, 200);
     assert.equal((await request('/path/../api/utils/env')).status, 400);
     const publicPage = await request('/_fnos/settings');
     assert.equal(publicPage.status, 200);

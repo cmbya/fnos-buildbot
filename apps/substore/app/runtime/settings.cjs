@@ -10,15 +10,19 @@ const INTERNAL = '/path';
 const SENTINEL = '/__fnos_backend_not_configured__';
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const matches = (pathname, prefix) => pathname === prefix || pathname.startsWith(prefix + '/');
+// Keep the long-prefix guard for existing installations, without blocking short
+// frontend routes such as /subs. Short retired prefixes are persisted explicitly.
 const reservedRoute = pathname => pathname.startsWith(INTERNAL) || pathname.startsWith(CONTROL) ||
   matches(pathname, SENTINEL) || /^\/(api|download)(\/|$)/.test(pathname) ||
   /^\/[A-Za-z0-9_-]{16,128}(\/|$)/.test(pathname);
+const FRONTEND_NAMES = new Set(['subs', 'sub', 'collections', 'collection', 'artifacts', 'artifact', 'files', 'file', 'settings', 'setting', 'share', 'download', 'api', 'modules', 'module', 'logs', 'login', 'assets', 'icons', 'images', 'fonts', 'manifest', 'favicon', 'about', 'tools', 'index', 'indexhtml', 'indexjs']);
 
 function validatePrefix(value, legacy = false) {
   if (legacy && value === INTERNAL) return value;
-  if (typeof value !== 'string' || !/^\/[A-Za-z0-9_-]{16,128}$/.test(value) ||
-      value.startsWith('/_fnos') || value === SENTINEL) {
-    throw new Error('API 路径必须为 / 加 16–128 个字母、数字、下划线或连字符；不允许使用 /path 或系统保留路径');
+  if (typeof value !== 'string' || !/^\/[A-Za-z0-9_-]{4,128}$/.test(value) ||
+      value.startsWith('/_fnos') || value.startsWith(INTERNAL) || value === SENTINEL ||
+      FRONTEND_NAMES.has(value.slice(1).toLowerCase())) {
+    throw new Error('API 路径必须为 / 加 4–128 个字母、数字、下划线或连字符；不能使用 /path、系统或前端页面保留路径');
   }
   return value;
 }
@@ -62,14 +66,22 @@ function loadState(directory, baseOrigins) {
   const base = new Set((baseOrigins || '').split(',').map(x => x.trim()).filter(Boolean));
   if (base.has('*')) throw new Error('Wildcard CORS override is incompatible with protected server settings');
   let config = { version: 1, apiPrefix: INTERNAL, allowedOrigins: [] };
+  let retired = [];
   try {
     const stored = JSON.parse(fs.readFileSync(filename, 'utf8'));
     if (stored.version !== 1) throw new Error('Unsupported settings version');
-    config = { version: 1, apiPrefix: validatePrefix(stored.apiPrefix, true), allowedOrigins: validateOrigins(stored.allowedOrigins) };
+    // Keep old, previously accepted 16+ character values valid on upgrade, even
+    // if a later reserved-name rule would reject choosing that value anew.
+    const oldCompatible = v => typeof v === 'string' && /^\/[A-Za-z0-9_-]{16,128}$/.test(v) && !v.startsWith('/_fnos') && v !== SENTINEL;
+    const readPrefix = v => oldCompatible(v) ? v : validatePrefix(v, true);
+    config = { version: 1, apiPrefix: readPrefix(stored.apiPrefix), allowedOrigins: validateOrigins(stored.allowedOrigins) };
+    if (stored.retiredPrefixes !== undefined && !Array.isArray(stored.retiredPrefixes)) throw new Error('Invalid retired prefix list');
+    retired = [...new Set((stored.retiredPrefixes || []).map(readPrefix))].filter(p => p !== config.apiPrefix);
     fs.chmodSync(filename, 0o600);
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
   return {
     get config() { return config; },
+    retired(pathname) { return retired.some(p => matches(pathname, p)); },
     authenticate(authorization) {
       if (typeof authorization !== 'string' || !authorization.startsWith('Bearer ')) return false;
       const candidate = Buffer.from(authorization.slice(7));
@@ -81,9 +93,13 @@ function loadState(directory, baseOrigins) {
       if (!input || typeof input !== 'object' || Array.isArray(input) ||
           Object.keys(input).some(k => !['apiPrefix', 'allowedOrigins'].includes(k)) ||
           !own(input, 'apiPrefix') || !own(input, 'allowedOrigins')) throw new Error('Invalid settings payload');
-      const next = { version: 1, apiPrefix: validatePrefix(input.apiPrefix, input.apiPrefix === config.apiPrefix), allowedOrigins: validateOrigins(input.allowedOrigins) };
-      atomicWrite(filename, JSON.stringify(next, null, 2) + '\n');
+      const prefix = input.apiPrefix === config.apiPrefix ? config.apiPrefix : validatePrefix(input.apiPrefix);
+      const next = { version: 1, apiPrefix: prefix, allowedOrigins: validateOrigins(input.allowedOrigins) };
+      if (prefix !== config.apiPrefix && retired.includes(prefix)) throw new Error('不能重新使用已停用的路径，请填写新路径');
+      const nextRetired = prefix === config.apiPrefix ? retired : [...new Set([...retired, config.apiPrefix])];
+      atomicWrite(filename, JSON.stringify({ ...next, retiredPrefixes: nextRetired }, null, 2) + '\n');
       config = next;
+      retired = nextRetired;
       return config;
     },
   };
@@ -155,16 +171,14 @@ function createGateway(upstream, state, assets = __dirname) {
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS,PATCH,PUT,DELETE');
       res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-      // Remove Origin only AFTER our exact persistent policy passed. Upstream
-      // captures its own static CORS policy at startup; the adapter owns updates.
-      delete req.headers.origin;
+      delete req.headers.origin; // Only after the exact dynamic policy passed.
     }
     if (origin && req.method === 'OPTIONS') { send(res, 204, '', 'text/plain'); return; }
     const prefix = state.config.apiPrefix;
     if (pathname.includes('%')) {
       let decoded;
       try { decoded = decodeURIComponent(pathname); } catch { send(res, 400, { error: 'Invalid encoding' }); return; }
-      if (reservedRoute(decoded) || matches(decoded, prefix) || decoded.includes('..')) {
+      if (reservedRoute(decoded) || matches(decoded, prefix) || state.retired(decoded) || decoded.includes('..')) {
         send(res, 404, { error: 'Not found' }); return;
       }
     }
@@ -172,10 +186,9 @@ function createGateway(upstream, state, assets = __dirname) {
       req.url = INTERNAL + raw.slice(prefix.length);
       upstream(req, res); return;
     }
-    // The upstream prefix matcher uses startsWith('/path'), not a segment
-    // boundary: /pathanything/api must never reach that matcher unchanged.
-    // Reserve configurable-prefix namespace so retired paths remain 404 after restart.
-    if (reservedRoute(pathname)) { send(res, 404, { error: 'Not found' }); return; }
+    // Do not widen the long-prefix regex to four characters: /subs and /settings
+    // are frontend routes, not retired API prefixes. Persist short retired paths.
+    if (reservedRoute(pathname) || state.retired(pathname)) { send(res, 404, { error: 'Not found' }); return; }
     upstream(req, res);
   };
 }

@@ -4,7 +4,7 @@
   const key = 'fnos-substore-api-prefix';
   let prefix;
   try { prefix = localStorage.getItem(key); } catch (_) { /* storage disabled */ }
-  if (prefix && !/^\/[A-Za-z0-9_-]{16,128}$/.test(prefix)) prefix = null;
+  if (prefix && !/^\/[A-Za-z0-9_-]{4,128}$/.test(prefix)) prefix = null;
   const legacy = '/path';
   function rewrite(input) {
     const url = new URL(input, location.href);
@@ -13,7 +13,6 @@
     }
     return url.href;
   }
-  // Covers upstream frontend default /path as well as API / download links.
   const fetchOriginal = window.fetch.bind(window);
   window.fetch = function(input, init) {
     const mapped = rewrite(input instanceof Request ? input.url : input);
