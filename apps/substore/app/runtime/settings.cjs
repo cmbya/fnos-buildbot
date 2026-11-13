@@ -10,6 +10,9 @@ const INTERNAL = '/path';
 const SENTINEL = '/__fnos_backend_not_configured__';
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const matches = (pathname, prefix) => pathname === prefix || pathname.startsWith(prefix + '/');
+const reservedRoute = pathname => pathname.startsWith(INTERNAL) || pathname.startsWith(CONTROL) ||
+  matches(pathname, SENTINEL) || /^\/(api|download)(\/|$)/.test(pathname) ||
+  /^\/[A-Za-z0-9_-]{16,128}(\/|$)/.test(pathname);
 
 function validatePrefix(value, legacy = false) {
   if (legacy && value === INTERNAL) return value;
@@ -80,7 +83,7 @@ function loadState(directory, baseOrigins) {
           !own(input, 'apiPrefix') || !own(input, 'allowedOrigins')) throw new Error('Invalid settings payload');
       const next = { version: 1, apiPrefix: validatePrefix(input.apiPrefix, input.apiPrefix === config.apiPrefix), allowedOrigins: validateOrigins(input.allowedOrigins) };
       atomicWrite(filename, JSON.stringify(next, null, 2) + '\n');
-      config = next; // Switch only after the durable write succeeds. No old route alias.
+      config = next;
       return config;
     },
   };
@@ -144,7 +147,7 @@ function createGateway(upstream, state, assets = __dirname) {
       req.on('error', () => { if (!res.writableEnded) send(res, 400, { error: 'Request interrupted' }); });
       return;
     }
-    if (matches(pathname, CONTROL)) { send(res, 404, { error: 'Not found' }); return; }
+    if (pathname.startsWith(CONTROL)) { send(res, 404, { error: 'Not found' }); return; }
     const origin = req.headers.origin;
     if (!state.allowed(origin)) { send(res, 403, 'CORS origin not allowed', 'text/plain; charset=utf-8'); return; }
     if (origin) {
@@ -161,8 +164,7 @@ function createGateway(upstream, state, assets = __dirname) {
     if (pathname.includes('%')) {
       let decoded;
       try { decoded = decodeURIComponent(pathname); } catch { send(res, 400, { error: 'Invalid encoding' }); return; }
-      if (matches(decoded, INTERNAL) || matches(decoded, prefix) || matches(decoded, CONTROL) ||
-          decoded.includes('..') || /^\/[A-Za-z0-9_-]{16,128}(\/|$)/.test(decoded)) {
+      if (reservedRoute(decoded) || matches(decoded, prefix) || decoded.includes('..')) {
         send(res, 404, { error: 'Not found' }); return;
       }
     }
@@ -170,14 +172,11 @@ function createGateway(upstream, state, assets = __dirname) {
       req.url = INTERNAL + raw.slice(prefix.length);
       upstream(req, res); return;
     }
-    // Retired random prefixes must not fall through to SPA index.html with 200.
-    // Reserve the namespace of configurable prefixes, including after restart.
-    if (matches(pathname, INTERNAL) || matches(pathname, SENTINEL) ||
-        /^\/(api|download)(\/|$)/.test(pathname) ||
-        /^\/[A-Za-z0-9_-]{16,128}(\/|$)/.test(pathname)) {
-      send(res, 404, { error: 'Not found' }); return;
-    }
-    upstream(req, res); // Public frontend; /share keeps upstream token semantics.
+    // The upstream prefix matcher uses startsWith('/path'), not a segment
+    // boundary: /pathanything/api must never reach that matcher unchanged.
+    // Reserve configurable-prefix namespace so retired paths remain 404 after restart.
+    if (reservedRoute(pathname)) { send(res, 404, { error: 'Not found' }); return; }
+    upstream(req, res);
   };
 }
 function install() {
@@ -194,5 +193,5 @@ function install() {
     return true;
   };
 }
-module.exports = { validatePrefix, validateOrigins, atomicWrite, loadState, createGateway, matches, install };
+module.exports = { validatePrefix, validateOrigins, atomicWrite, loadState, createGateway, matches, reservedRoute, install };
 if (process.env.SUBSTORE_FNOS_SETTINGS === '1') install();
