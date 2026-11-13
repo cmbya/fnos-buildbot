@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import zipfile
 from pathlib import Path, PurePosixPath
+from substore_settings_assets import install_settings_ui
 
 
 def checked_download(release, name, dest, token):
@@ -102,6 +103,10 @@ def build(app, version, tag, stage, work, token):
     www = stage / 'app/www'
     unpack_frontend(work / 'dist.zip', www)
     patch = patch_frontend(www)
+    settings_patch = install_settings_ui(www)
+    for name in ('settings.cjs', 'settings.html', 'settings.js', 'client.js'):
+        if not (stage / 'app/runtime' / name).is_file():
+            raise RuntimeError(f'Missing fnOS server settings asset: {name}')
     # Preserve the exact release-tag component licenses.
     for repo, release_tag, dest in [(app['upstream_repo'], tag, server / 'LICENSE'),
                                      (frontend_repo, frontend_tag, www / 'LICENSE')]:
@@ -113,12 +118,13 @@ def build(app, version, tag, stage, work, token):
     shutil.copy2(server / 'LICENSE', stage / 'LICENSE')
     sources = (f'Backend source: https://github.com/{app["upstream_repo"]}/tree/{tag}\n'
                f'Frontend source: https://github.com/{frontend_repo}/tree/{frontend_tag}\n'
-               'Packaging and frontend patch: https://github.com/cmbya/fnos-buildbot\n'
-               'Backend: AGPL-3.0; frontend: GPL-3.0. Frontend default API changed to /path.\n')
+               'Packaging and runtime/frontend adapters: https://github.com/cmbya/fnos-buildbot\n'
+               'Backend: AGPL-3.0; frontend: GPL-3.0. Frontend default API changed to /path; optional persistent fnOS gateway translates the configured public prefix.\n')
     (stage / 'app/SOURCES.txt').write_text(sources)
     (www / 'SOURCES.txt').write_text(sources)
     (stage / 'app/BUILD.json').write_text(json.dumps({
         'backend_tag': tag, 'frontend_tag': frontend_tag,
         'backend_asset': be, 'frontend_asset': fe, 'frontend_patch': patch,
+        'server_settings_patch': settings_patch,
     }, indent=2) + '\n')
-    print(f'[substore] backend={tag}, frontend={frontend_tag}, checked SHA256; patched {patch["file"]}')
+    print(f'[substore] backend={tag}, frontend={frontend_tag}, checked SHA256; patched {patch["file"]}; fnOS web settings attached')
